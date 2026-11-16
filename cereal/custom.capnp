@@ -41,7 +41,32 @@ struct FrogPilotPlan @0xda96579883444c35 {
   vtscControllingCurve @14 :Bool;
 }
 
-struct CustomReserved4 @0x80ae746ee2596b11 {
+struct SmartEcoState @0x80ae746ee2596b11 {
+  # Smart Eco Cruise monitoring output (no actuation)
+  enabled @0 :Bool;
+  profileIdx @1 :UInt8;
+  profileMinKw @2 :Float32;
+  profileTargetKw @3 :Float32;    # band ceiling for the current profile
+  targetKw @4 :Float32;           # rate-limited ceiling actually in use
+  vEgo @5 :Float32;
+  estimatedKw @6 :Float32;
+  measuredKw @7 :Float32;
+  measuredAvailable @8 :Bool;
+  measuredSign @9 :Int8;          # 0 = still learning
+  hvVoltage @10 :Float32;
+  hvCurrent @11 :Float32;
+  powerKw @12 :Float32;           # measured if available, else estimated
+  roadLoadKw @13 :Float32;
+  gradePct @14 :Float32;
+  overTarget @15 :Bool;
+  driverOnAccelerator @16 :Bool;
+  driverOverride @17 :Bool;       # driver pushing past the eco ceiling
+  longActive @18 :Bool;
+  recommendedMaxAccel @19 :Float32;
+  tripEnergyKwh @20 :Float32;
+  tripExcessKwh @21 :Float32;     # energy used above the eco ceiling
+  tripDistanceKm @22 :Float32;
+  tripOverTargetS @23 :Float32;
 }
 
 struct CustomReserved5 @0xa5cd762cd951a455 {

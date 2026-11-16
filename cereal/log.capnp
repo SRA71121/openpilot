@@ -2335,7 +2335,7 @@ struct Event {
     frogpilotDeviceState @108 :Custom.FrogPilotDeviceState;
     frogpilotNavigation @109 :Custom.FrogPilotNavigation;
     frogpilotPlan @110 :Custom.FrogPilotPlan;
-    customReserved4 @111 :Custom.CustomReserved4;
+    smartEcoState @111 :Custom.SmartEcoState;
     customReserved5 @112 :Custom.CustomReserved5;
     customReserved6 @113 :Custom.CustomReserved6;
     customReserved7 @114 :Custom.CustomReserved7;

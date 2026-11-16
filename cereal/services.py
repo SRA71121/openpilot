@@ -103,6 +103,9 @@ services: dict[str, tuple] = {
   "customReservedRawData0": (True, 0.),
   "customReservedRawData1": (True, 0.),
   "customReservedRawData2": (True, 0.),
+
+  # Smart Eco Cruise (appended at the end so existing service ports don't shift)
+  "smartEcoState": (True, 20., 20),
 }
 SERVICE_LIST = {name: Service(new_port(idx), *vals) for
                 idx, (name, vals) in enumerate(services.items())}

@@ -1933,6 +1933,15 @@ void AnnotatedCameraWidget::drawStatusBar(QPainter &p) {
 
   QString roadName = roadNameUI ? QString::fromStdString(paramsMemory.get("RoadName")) : QString();
 
+  // Prefix the travel direction ("Heading Northeast on Main St") so it can be read off when calling someone.
+  // Direction comes from the comma's own GPS/IMU, so it works even without offline map data.
+  if (roadNameUI && uiState()->scene.bearing_valid) {
+    static const char *dirs[] = {"North", "Northeast", "East", "Southeast", "South", "Southwest", "West", "Northwest"};
+    double b = fmod(uiState()->scene.bearing_deg + 360.0, 360.0);
+    QString heading = QString("Heading ") + dirs[int((b + 22.5) / 45.0) % 8];
+    roadName = roadName.isEmpty() ? heading : heading + " on " + roadName;
+  }
+
   // Update status text
   if (alwaysOnLateralActive) {
     newStatus = QString("Always On Lateral active") + (mapOpen ? "" : ". Press the \"Cruise Control\" button to disable");

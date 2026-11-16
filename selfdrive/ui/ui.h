@@ -251,6 +251,8 @@ typedef struct UIScene {
   float unconfirmed_speed_limit;
 
   int bearing_deg;
+
+  bool bearing_valid = false;
   int camera_view;
   int conditional_speed;
   int conditional_speed_lead;

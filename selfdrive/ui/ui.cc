@@ -284,8 +284,9 @@ static void update_state(UIState *s) {
   }
   if (sm.updated("liveLocationKalman")) {
     auto liveLocationKalman = sm["liveLocationKalman"].getLiveLocationKalman();
-    if (scene.compass) {
+    if (scene.compass || scene.road_name_ui) {
       auto orientation = liveLocationKalman.getCalibratedOrientationNED();
+      scene.bearing_valid = orientation.getValid() && liveLocationKalman.getGpsOK();
       if (orientation.getValid()) {
         scene.bearing_deg = RAD2DEG(orientation.getValue()[2]);
       }

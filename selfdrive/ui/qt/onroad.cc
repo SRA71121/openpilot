@@ -882,6 +882,12 @@ void AnnotatedCameraWidget::drawLaneLines(QPainter &painter, const UIState *s) {
     bg.setColorAt(1.0, QColor::fromHslF(112 / 360., 1.0, 0.68, 0.0));
   }
 
+  // Stephen's preference: path is always cobalt blue (#0047AB), regardless of mode or theme.
+  bg = QLinearGradient(0, height(), 0, 0);
+  bg.setColorAt(0.0, QColor(0x00, 0x47, 0xAB, 140));
+  bg.setColorAt(0.5, QColor(0x00, 0x47, 0xAB, 110));
+  bg.setColorAt(1.0, QColor(0x00, 0x47, 0xAB, 0));
+
   painter.setBrush(bg);
   painter.drawPolygon(scene.track_vertices);
 

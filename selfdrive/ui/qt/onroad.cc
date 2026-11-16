@@ -882,11 +882,20 @@ void AnnotatedCameraWidget::drawLaneLines(QPainter &painter, const UIState *s) {
     bg.setColorAt(1.0, QColor::fromHslF(112 / 360., 1.0, 0.68, 0.0));
   }
 
-  // Stephen's preference: path is always cobalt blue (#0047AB), regardless of mode or theme.
+  // Stephen's mode colors (override themes/acceleration coloring):
+  //   Always On Lateral = cobalt blue, fully engaged = soft silver, off = faint neutral
+  const UIStatus mode = uiState()->status;
+  const QColor modeFill = mode == STATUS_LATERAL_ACTIVE ? QColor(0x00, 0x47, 0xAB)
+                        : (mode == STATUS_ENGAGED || mode == STATUS_OVERRIDE) ? QColor(0xB8, 0xC2, 0xCC)
+                        : QColor(0x80, 0x80, 0x80);
+  const QColor modeEdge = mode == STATUS_LATERAL_ACTIVE ? QColor(0x2F, 0x6F, 0xD6)
+                        : (mode == STATUS_ENGAGED || mode == STATUS_OVERRIDE) ? QColor(0xD8, 0xDE, 0xE4)
+                        : QColor(0x90, 0x90, 0x90);
+  const bool modeOff = !(mode == STATUS_LATERAL_ACTIVE || mode == STATUS_ENGAGED || mode == STATUS_OVERRIDE);
   bg = QLinearGradient(0, height(), 0, 0);
-  bg.setColorAt(0.0, QColor(0x00, 0x47, 0xAB, 140));
-  bg.setColorAt(0.5, QColor(0x00, 0x47, 0xAB, 110));
-  bg.setColorAt(1.0, QColor(0x00, 0x47, 0xAB, 0));
+  bg.setColorAt(0.0, QColor(modeFill.red(), modeFill.green(), modeFill.blue(), modeOff ? 30 : 140));
+  bg.setColorAt(0.5, QColor(modeFill.red(), modeFill.green(), modeFill.blue(), modeOff ? 20 : 110));
+  bg.setColorAt(1.0, QColor(modeFill.red(), modeFill.green(), modeFill.blue(), 0));
 
   painter.setBrush(bg);
   painter.drawPolygon(scene.track_vertices);
@@ -931,6 +940,11 @@ void AnnotatedCameraWidget::drawLaneLines(QPainter &painter, const UIState *s) {
     pe.setColorAt(0.5, QColor::fromHslF(112 / 360., 1.00, 0.68, 0.5));
     pe.setColorAt(1.0, QColor::fromHslF(112 / 360., 1.00, 0.68, 0.1));
   }
+
+  pe = QLinearGradient(0, height(), 0, 0);
+  pe.setColorAt(0.0, QColor(modeEdge.red(), modeEdge.green(), modeEdge.blue(), modeOff ? 60 : 230));
+  pe.setColorAt(0.5, QColor(modeEdge.red(), modeEdge.green(), modeEdge.blue(), modeOff ? 30 : 120));
+  pe.setColorAt(1.0, QColor(modeEdge.red(), modeEdge.green(), modeEdge.blue(), 25));
 
   painter.setBrush(pe);
   painter.drawPath(path);

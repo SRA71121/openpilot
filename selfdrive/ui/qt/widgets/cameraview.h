@@ -63,6 +63,7 @@ protected:
   int glHeight();
 
   bool zoomed_view;
+  float night_boost = 0.0f;  // 0 = off, 1 = full night tone lift (display only)
   GLuint frame_vao, frame_vbo, frame_ibo;
   GLuint textures[2];
   mat4 frame_mat = {};

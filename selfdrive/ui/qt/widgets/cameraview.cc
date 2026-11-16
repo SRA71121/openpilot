@@ -37,10 +37,18 @@ const char frame_fragment_shader[] =
   "#extension GL_OES_EGL_image_external_essl3 : enable\n"
   "precision mediump float;\n"
   "uniform samplerExternalOES uTexture;\n"
+  "uniform float uNightBoost;\n"
+  "vec3 nightTone(vec3 c, float k) {\n"
+  "  c = clamp(c, 0.0, 1.0);\n"
+  "  vec3 lifted = pow(c, vec3(1.0 - 0.5 * k));\n"
+  "  lifted = (lifted - 0.2) * (1.0 + 0.2 * k) + 0.2;\n"
+  "  return clamp(lifted, 0.0, 1.0);\n"
+  "}\n"
   "in vec2 vTexCoord;\n"
   "out vec4 colorOut;\n"
   "void main() {\n"
-  "  colorOut = texture(uTexture, vTexCoord);\n"
+  "  vec4 c = texture(uTexture, vTexCoord);\n"
+  "  colorOut = vec4(nightTone(c.rgb, uNightBoost), c.a);\n"
   "}\n";
 #else
 #ifdef __APPLE__
@@ -51,6 +59,13 @@ const char frame_fragment_shader[] =
 #endif
   "uniform sampler2D uTextureY;\n"
   "uniform sampler2D uTextureUV;\n"
+  "uniform float uNightBoost;\n"
+  "vec3 nightTone(vec3 c, float k) {\n"
+  "  c = clamp(c, 0.0, 1.0);\n"
+  "  vec3 lifted = pow(c, vec3(1.0 - 0.5 * k));\n"
+  "  lifted = (lifted - 0.2) * (1.0 + 0.2 * k) + 0.2;\n"
+  "  return clamp(lifted, 0.0, 1.0);\n"
+  "}\n"
   "in vec2 vTexCoord;\n"
   "out vec4 colorOut;\n"
   "void main() {\n"
@@ -59,7 +74,7 @@ const char frame_fragment_shader[] =
   "  float r = y + 1.402 * uv.y;\n"
   "  float g = y - 0.344 * uv.x - 0.714 * uv.y;\n"
   "  float b = y + 1.772 * uv.x;\n"
-  "  colorOut = vec4(r, g, b, 1.0);\n"
+  "  colorOut = vec4(nightTone(vec3(r, g, b), uNightBoost), 1.0);\n"
   "}\n";
 #endif
 
@@ -320,6 +335,7 @@ void CameraWidget::paintGL() {
 #endif
 
   glUniformMatrix4fv(program->uniformLocation("uTransform"), 1, GL_TRUE, frame_mat.v);
+  glUniform1f(program->uniformLocation("uNightBoost"), night_boost);  // display-only night contrast
   glEnableVertexAttribArray(0);
   glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_BYTE, (const void *)0);
   glDisableVertexAttribArray(0);

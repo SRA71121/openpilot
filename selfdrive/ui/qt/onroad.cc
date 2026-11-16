@@ -553,6 +553,14 @@ void AnnotatedCameraWidget::updateState(const UIState &s) {
   const int SET_SPEED_NA = 255;
   const SubMaster &sm = *(s.sm);
 
+  // Night view: brighten shadows/contrast of the camera picture as it gets dark.
+  // light_sensor is 0 (dark) .. 100 (bright). Full effect at <=10, none at >=40.
+  // Display only; the driving model never sees this.
+  float darkness = std::clamp((40.0f - s.scene.light_sensor) / 30.0f, 0.0f, 1.0f);
+  const float NIGHT_VIEW_STRENGTH = 0.7f;  // 0.0 = off, 1.0 = maximum
+  float night_target = darkness * NIGHT_VIEW_STRENGTH;
+  night_boost += 0.05f * (night_target - night_boost);  // ease in/out, no flicker
+
   const bool cs_alive = sm.alive("controlsState");
   const bool nav_alive = sm.alive("navInstruction") && sm["navInstruction"].getValid();
   const auto cs = sm["controlsState"].getControlsState();

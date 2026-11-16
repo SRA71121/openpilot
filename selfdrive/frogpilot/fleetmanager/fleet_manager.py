@@ -336,6 +336,61 @@ def store_toggle_values_route():
   except Exception as e:
     return jsonify({"error": "Failed to update values", "details": str(e)}), 400
 
+# ---- Smart Eco Cruise: trips, leaderboards, speed vs power -------------------
+from openpilot.selfdrive.frogpilot.functions import smart_eco_trips as eco_trips
+
+
+def _eco_context():
+  trips = eco_trips.load_trips()
+  routes = eco_trips.load_routes()
+  miles = sum(t["miles"] for t in trips)
+  drive = sum(t["drive_kwh"] for t in trips)
+  acc = [t["accessory_kwh"] for t in trips if t["accessory_kwh"] is not None]
+  totals = {"trips": len(trips), "miles": miles, "drive_kwh": drive,
+            "mi_per_kwh": miles / drive if drive > 0.01 else None,
+            "accessory_kwh": sum(acc) if acc else None}
+  return trips, routes, totals
+
+
+def _max_kw(rows):
+  return max([r["steady_kw"] or 0 for r in rows] + [1.0])
+
+
+@app.route("/smart_eco", methods=["GET"])
+def smart_eco_page():
+  trips, routes, totals = _eco_context()
+  rows = eco_trips.speed_table([t["bins"] for t in trips])
+  return render_template("smart_eco.html", trip=None, totals=totals,
+                         boards=eco_trips.leaderboards(trips, routes), recent=trips[:20],
+                         route_names={r["id"]: r["name"] for r in routes},
+                         speed_rows=rows, max_kw=_max_kw(rows))
+
+
+@app.route("/smart_eco/trip/<int:start>", methods=["GET"])
+def smart_eco_trip(start):
+  trips, _, _ = _eco_context()
+  trip = next((t for t in trips if int(t["start"]) == start), None)
+  if trip is None:
+    return redirect("/smart_eco")
+  rows = eco_trips.speed_table([trip["bins"]])
+  return render_template("smart_eco.html", trip=trip, speed_rows=rows, max_kw=_max_kw(rows))
+
+
+@app.route("/smart_eco/rename", methods=["POST"])
+def smart_eco_rename():
+  try:
+    eco_trips.rename_route(int(request.form.get("id", "0")), request.form.get("name", ""))
+  except ValueError:
+    pass
+  return redirect("/smart_eco")
+
+
+@app.route("/smart_eco/export.json", methods=["GET"])
+def smart_eco_export():
+  trips, routes, totals = _eco_context()
+  return jsonify({"totals": totals, "routes": routes, "trips": trips})
+
+
 def main():
   try:
     set_core_affinity([0, 1, 2, 3])

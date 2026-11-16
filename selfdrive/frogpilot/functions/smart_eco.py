@@ -249,6 +249,7 @@ class EcoOutputs:
   profile_target_kw: float = 0.0
   target_kw: float = 0.0
   estimated_kw: float = 0.0
+  drive_kw: float = 0.0          # propulsion only (estimate minus baseline accessory load)
   measured_kw: Optional[float] = None
   power_kw: float = 0.0
   road_load_kw: float = 0.0
@@ -302,6 +303,7 @@ class SmartEcoMonitor:
     pitch = inp.pitch if inp.pitch_valid else 0.0
     o.grade_pct = math.tan(pitch) * 100.0
     o.estimated_kw = self.model.battery_power_kw(inp.v_ego, inp.a_ego, pitch)
+    o.drive_kw = o.estimated_kw - self.model.aux_kw
     o.road_load_kw = self.model.road_load_w(inp.v_ego, pitch) / 1000.0
     o.measured_kw = None
     if self.measured is not None and self.measured.available(inp.t):

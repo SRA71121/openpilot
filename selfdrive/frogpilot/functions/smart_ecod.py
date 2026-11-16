@@ -13,6 +13,7 @@ CANParser in this process, NOT added to carstate's parser. If the message isn't
 on the bus, the car's CAN validity is unaffected; this daemon just stops looking
 after PROBE_S and falls back to the physics estimate.
 """
+import signal
 import time
 
 import cereal.messaging as messaging
@@ -21,6 +22,7 @@ from openpilot.common.params import Params
 from openpilot.common.realtime import Ratekeeper
 from openpilot.common.swaglog import cloudlog
 from openpilot.selfdrive.frogpilot.functions.smart_eco import EcoInputs, MeasuredPower, SmartEcoMonitor, parse_config
+from openpilot.selfdrive.frogpilot.functions import smart_eco_trips as trips
 
 RATE_HZ = 20
 PARAMS_RELOAD_S = 5.0
@@ -28,6 +30,7 @@ PROBE_S = 60.0               # stop draining CAN if the HV message never shows u
 HV_MSG = "BECMBatteryVoltageCurrent"
 HV_ADDR = 711                # 0x2C7
 PT_BUS = 0
+CHECKPOINT_S = 30.0
 
 
 def make_hv_parser(CP):
@@ -64,6 +67,31 @@ def main():
   hv_seen = False
   rk = Ratekeeper(RATE_HZ, print_delay_threshold=None)
 
+  # Trip log: store any drive that ended without a clean shutdown, then start a new one
+  try:
+    trips.recover_unfinished()
+  except Exception:
+    cloudlog.exception("smart_ecod: trip recovery failed")
+  trip = trips.TripLog(time.time())
+  last_checkpoint = start_t
+  last_t = start_t
+
+  def _stop(*_):
+    raise SystemExit
+  signal.signal(signal.SIGTERM, _stop)
+
+  try:
+    _loop(params, monitor, measured, hv_parser, can_sock, sm, pm, rk, trip, car_mass,
+          profiles_raw, model_raw, start_t, last_reload, hv_seen, last_checkpoint, last_t)
+  finally:
+    try:
+      trips.finalize(trip)
+    except Exception:
+      cloudlog.exception("smart_ecod: trip finalize failed")
+
+
+def _loop(params, monitor, measured, hv_parser, can_sock, sm, pm, rk, trip, car_mass,
+          profiles_raw, model_raw, start_t, last_reload, hv_seen, last_checkpoint, last_t):
   while True:
     sm.update(0)
     now = time.monotonic()
@@ -103,6 +131,20 @@ def main():
       long_active=sm["carControl"].longActive,
     )
     o = monitor.update(inp)
+
+    # Trip log (route detection uses GPS start/end; stored only on this device)
+    pos = None
+    if sm.valid["liveLocationKalman"] and llk.positionGeodetic.valid and len(llk.positionGeodetic.value) >= 2:
+      pos = (llk.positionGeodetic.value[0], llk.positionGeodetic.value[1])
+    dt = min(max(now - last_t, 0.0), 0.5)
+    last_t = now
+    trip.update(dt, inp.v_ego, inp.a_ego, o.drive_kw, o.measured_kw, o.power_kw - o.target_kw, o.over_target, pos)
+    if now - last_checkpoint > CHECKPOINT_S:
+      last_checkpoint = now
+      try:
+        trips.checkpoint(trip)
+      except Exception:
+        cloudlog.exception("smart_ecod: checkpoint failed")
 
     msg = messaging.new_message("smartEcoState")
     msg.valid = sm.all_checks(["carState"])

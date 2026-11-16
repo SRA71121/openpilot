@@ -291,6 +291,19 @@ def manager_init() -> None:
     else:
       params_storage.put(k, params.get(k))
 
+  # Also protect settings/learned values that aren't in the list above, so a reinstall
+  # keeps how the car drives: back up when present, restore only when missing.
+  for k in ("ExperimentalLongitudinalEnabled", "ExperimentalMode", "ExperimentalModeConfirmed", "IsMetric",
+            "IsLdwEnabled", "CalibrationParams", "LiveParameters", "LiveTorqueParameters"):
+    try:
+      if params.get(k) is None:
+        if params_storage.get(k) is not None:
+          params.put(k, params_storage.get(k))
+      else:
+        params_storage.put(k, params.get(k))
+    except Exception:
+      cloudlog.exception(f"settings backup failed for {k}")
+
   # Create folders needed for msgq
   try:
     os.mkdir("/dev/shm")

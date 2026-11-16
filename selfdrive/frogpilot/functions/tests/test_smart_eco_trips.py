@@ -66,5 +66,38 @@ class TestTrips(unittest.TestCase):
     self.assertIsNone(st.finalize(t, self.dir)["route_id"])
 
 
+
+class TestSeasonsJourneys(unittest.TestCase):
+  def setUp(self):
+    self.dir = tempfile.mkdtemp()
+
+  def test_season_split(self):
+    import time as _t
+    jul = _t.mktime((2026, 7, 10, 7, 0, 0, 0, 0, -1))
+    jan = _t.mktime((2027, 1, 10, 7, 0, 0, 0, 0, -1))
+    st.finalize(drive(st.TripLog(jul), HOME, WORK, kw=9.0), self.dir)
+    st.finalize(drive(st.TripLog(jan), HOME, WORK, kw=12.0, measured_extra=3.0), self.dir)
+    st.finalize(drive(st.TripLog(jan + 86400), HOME, WORK, kw=11.0, measured_extra=2.0), self.dir)
+    rows = st.season_stats(st.load_trips(self.dir), st.load_routes(self.dir))
+    by = {r["season"]: r for r in rows}
+    self.assertEqual(by["Summer"]["runs"], 1)
+    self.assertEqual(by["Winter"]["runs"], 2)
+    self.assertGreater(by["Summer"]["avg_mi_per_kwh"], by["Winter"]["avg_mi_per_kwh"])
+    self.assertIsNotNone(by["Winter"]["avg_heat_kwh"])
+
+  def test_journeys(self):
+    shop = (40.20, -105.10)
+    t0 = 1_800_000_000.0
+    a = drive(st.TripLog(t0), HOME, shop, minutes=15)
+    b = drive(st.TripLog(a.end_epoch + 600), shop, WORK, minutes=20)     # 10 min stop -> same journey
+    c = drive(st.TripLog(b.end_epoch + 7200), WORK, HOME, minutes=40)    # 2 h later -> separate
+    for t in (a, b, c):
+      st.finalize(t, self.dir)
+    js = st.journeys(st.load_trips(self.dir), {})
+    self.assertEqual(len(js), 1)
+    self.assertEqual(js[0]["legs"], 2)
+    self.assertAlmostEqual(js[0]["miles"], a.miles + b.miles, places=3)
+
+
 if __name__ == "__main__":
   unittest.main()

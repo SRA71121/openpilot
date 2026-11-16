@@ -253,6 +253,11 @@ typedef struct UIScene {
   int bearing_deg;
 
   bool bearing_valid = false;
+  bool eco_alive = false;
+  bool smart_eco_score_ui = false;
+  float eco_score = -1.0f;
+  float eco_trip_score = -1.0f;
+  float eco_pace_range = 0.0f;
   int camera_view;
   int conditional_speed;
   int conditional_speed_lead;

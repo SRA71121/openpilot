@@ -150,5 +150,95 @@ class TestMonitor(unittest.TestCase):
     self.assertAlmostEqual(out.power_kw, out.estimated_kw)
 
 
+
+# ---- speed-control helpers (limiter / glide) and live score ----------------
+from smart_eco import EcoLongControl, EcoScore, instant_score  # noqa: E402
+
+
+def sim_drive(ctrl, grades, v_set, dt=0.1, use_ctrl=True):
+  """Crude longitudinal sim: a P-controller toward the target, clipped by the cap (if any)
+  and by normal cruise limits. Returns (battery kWh, min v, max v)."""
+  model = PowerModel(parse_config().model, BOLT_MASS)
+  v, kwh, vmin, vmax = v_set, 0.0, v_set, v_set
+  for g in grades:
+    pitch = math.atan(g)
+    cap, tgt = ctrl.update(v, v_set, v_set, pitch) if use_ctrl else (None, None)
+    target = tgt if tgt else v_set
+    a = min(max(0.6 * (target - v), -1.5), 1.2)
+    if cap is not None:
+      a = min(a, cap)
+    natural = -model.road_load_w(v, pitch) / (model.m * v)
+    kwh += model.battery_power_kw(v, a, pitch) * dt / 3600.0 if True else 0
+    v += a * dt
+    vmin, vmax = min(vmin, v), max(vmax, v)
+    _ = natural
+  return kwh, vmin, vmax
+
+
+class TestEcoLong(unittest.TestCase):
+  def ctrl(self, **kw):
+    return EcoLongControl(parse_config(), BOLT_MASS, **kw)
+
+  def test_off_and_gas_override(self):
+    c = self.ctrl(limiter=True, glide=True)
+    self.assertEqual(c.update(mph(60), mph(60), mph(60), gas_pressed=True), (None, None))
+    self.assertEqual(self.ctrl().update(mph(60), mph(60), mph(60)), (None, None))
+
+  def test_limiter_caps_but_never_brakes_hard(self):
+    c = self.ctrl(limiter=True)
+    cap, tgt = c.update(mph(45), mph(55), mph(55))
+    self.assertIsNone(tgt)
+    self.assertAlmostEqual(c.model.battery_power_kw(mph(45), cap), 16.0, places=2)
+    cap, _ = c.update(mph(60), mph(60), mph(60), pitch=math.atan(0.08))   # steep climb
+    self.assertGreaterEqual(cap, EcoLongControl.CAP_FLOOR)
+    cap, _ = c.update(mph(56), mph(60), mph(60), pitch=math.atan(0.08))   # sagged past the band
+    self.assertGreaterEqual(cap, 0.0)
+
+  def test_limiter_off_in_curves(self):
+    c = self.ctrl(limiter=True)
+    self.assertEqual(c.update(mph(50), mph(60), mph(40)), (None, None))
+
+  def test_glide_only_when_safe(self):
+    c = self.ctrl(glide=True, glide_band_mph=3)
+    down = math.atan(-0.03)
+    cap, tgt = c.update(mph(60), mph(60), mph(60), pitch=down)
+    self.assertAlmostEqual(tgt, mph(63), places=3)
+    self.assertGreater(cap, 0)   # gravity does the work, motor at ~zero
+    self.assertEqual(c.update(mph(60), mph(60), mph(60), pitch=down, lead_status=True, lead_d=40, lead_v=mph(60)), (None, None))
+    self.assertEqual(c.update(mph(30), mph(30), mph(30), pitch=down), (None, None))   # too slow
+    self.assertEqual(c.update(mph(60), mph(60), mph(60), pitch=0.0), (None, None))    # flat at set speed: normal cruise
+
+  def test_glide_saves_energy_and_stays_in_band(self):
+    grades = [0.0] * 300 + [-0.03] * 400 + [0.0] * 600 + [0.02] * 400 + [0.0] * 300
+    base, _, _ = sim_drive(self.ctrl(), grades, mph(60), use_ctrl=False)
+    glide, vmin, vmax = sim_drive(self.ctrl(glide=True, limiter=True), grades, mph(60))
+    self.assertLess(glide, base)
+    self.assertLessEqual(vmax, mph(63) + 0.3)
+    self.assertGreaterEqual(vmin, mph(57) - 0.5)
+
+
+class TestScore(unittest.TestCase):
+  def test_instant(self):
+    self.assertEqual(instant_score(5, 16), 10.0)
+    self.assertAlmostEqual(instant_score(16, 16), 8.0)
+    self.assertAlmostEqual(instant_score(24, 16), 5.0)
+    self.assertEqual(instant_score(60, 16), 1.0)
+    self.assertEqual(instant_score(-5, 16), 9.5)
+    self.assertLess(instant_score(-40, 16), 8.0)
+
+  def test_smoothing_and_pace(self):
+    s = EcoScore(65.0)
+    for _ in range(600):                 # 60 s gentle cruise
+      s.update(0.1, mph(55), 11.0, 25.0)
+    self.assertGreater(s.score, 9.5)
+    s.update(0.1, mph(55), 80.0, 25.0)   # one floored instant barely moves it
+    self.assertGreater(s.score, 9.0)
+    for _ in range(200):                 # 20 s floored
+      s.update(0.1, mph(55), 80.0, 25.0)
+    self.assertLess(s.score, 2.0)
+    self.assertIsNotNone(s.trip_score)
+    self.assertIsNotNone(s.pace_range_mi)
+
+
 if __name__ == "__main__":
   unittest.main()

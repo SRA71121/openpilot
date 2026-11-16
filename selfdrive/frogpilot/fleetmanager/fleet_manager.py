@@ -338,6 +338,7 @@ def store_toggle_values_route():
 
 # ---- Smart Eco Cruise: trips, leaderboards, speed vs power -------------------
 from openpilot.selfdrive.frogpilot.functions import smart_eco_trips as eco_trips
+from openpilot.selfdrive.frogpilot.functions.smart_eco_12v import Battery12VLog
 
 
 def _eco_context():
@@ -360,10 +361,29 @@ def _max_kw(rows):
 def smart_eco_page():
   trips, routes, totals = _eco_context()
   rows = eco_trips.speed_table([t["bins"] for t in trips])
+  names = {r["id"]: r["name"] for r in routes}
   return render_template("smart_eco.html", trip=None, totals=totals,
                          boards=eco_trips.leaderboards(trips, routes), recent=trips[:20],
-                         route_names={r["id"]: r["name"] for r in routes},
-                         speed_rows=rows, max_kw=_max_kw(rows))
+                         route_names=names, speed_rows=rows, max_kw=_max_kw(rows),
+                         seasons=eco_trips.season_stats(trips, routes),
+                         journeys=eco_trips.journeys(trips, names)[:10],
+                         v12=_v12_context())
+
+
+def _v12_context():
+  log12 = Battery12VLog.load()
+  now = time.time()
+  pts = [s for s in log12.samples if s[0] >= now - 3 * 86400]
+  chart = None
+  if len(pts) >= 2:
+    vmin, vmax = 11.5, 14.8
+    t0, t1 = pts[0][0], max(pts[-1][0], pts[0][0] + 1)
+    def xy(s):
+      return (round(600 * (s[0] - t0) / (t1 - t0), 1), round(160 * (1 - (min(max(s[1], vmin), vmax) - vmin) / (vmax - vmin)), 1))
+    chart = {"points": " ".join(f"{x},{y}" for x, y in map(xy, pts)),
+             "warn_y": round(160 * (1 - ((fleet.params.get_float("SmartEco12VWarn") or 12.2) - vmin) / (vmax - vmin)), 1)}
+  return {"latest": log12.latest_resting(), "pre_drive": list(reversed(log12.pre_drive()))[:10],
+          "warn": fleet.params.get_float("SmartEco12VWarn") or 12.2, "chart": chart}
 
 
 @app.route("/smart_eco/trip/<int:start>", methods=["GET"])
@@ -388,7 +408,8 @@ def smart_eco_rename():
 @app.route("/smart_eco/export.json", methods=["GET"])
 def smart_eco_export():
   trips, routes, totals = _eco_context()
-  return jsonify({"totals": totals, "routes": routes, "trips": trips})
+  return jsonify({"totals": totals, "routes": routes, "trips": trips,
+                  "battery_12v": Battery12VLog.load().to_dict()})
 
 
 def main():

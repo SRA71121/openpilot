@@ -260,6 +260,13 @@ static void update_state(UIState *s) {
       scene.speed_limit_changed = frogpilotCarControl.getSpeedLimitChanged();
     }
   }
+  if (sm.updated("smartEcoState")) {
+    auto eco = sm["smartEcoState"].getSmartEcoState();
+    scene.eco_score = eco.getEcoScore();
+    scene.eco_trip_score = eco.getEcoTripScore();
+    scene.eco_pace_range = eco.getPaceRangeMi();
+  }
+  scene.eco_alive = sm.alive("smartEcoState");
   if (sm.updated("frogpilotPlan")) {
     auto frogpilotPlan = sm["frogpilotPlan"].getFrogpilotPlan();
     if (scene.blind_spot_path) {
@@ -339,6 +346,7 @@ void ui_update_frogpilot_params(UIState *s) {
   scene.use_si = scene.lead_info && params.getBool("UseSI");
   scene.pedals_on_ui = custom_onroad_ui && params.getBool("PedalsOnUI");
   scene.road_name_ui = custom_onroad_ui && params.getBool("RoadNameUI");
+  scene.smart_eco_score_ui = params.getBool("SmartEcoCruise") && params.getBool("SmartEcoScoreUI");
 
   bool custom_theme = params.getBool("CustomTheme");
   scene.custom_colors = custom_theme ? params.getInt("CustomColors") : 0;
@@ -435,7 +443,7 @@ UIState::UIState(QObject *parent) : QObject(parent) {
     "modelV2", "controlsState", "liveCalibration", "radarState", "deviceState",
     "pandaStates", "carParams", "driverMonitoringState", "carState", "liveLocationKalman", "driverStateV2",
     "wideRoadCameraState", "managerState", "navInstruction", "navRoute", "uiPlan",
-    "frogpilotCarControl", "frogpilotDeviceState", "frogpilotPlan",
+    "frogpilotCarControl", "frogpilotDeviceState", "frogpilotPlan", "smartEcoState",
   });
 
   Params params;

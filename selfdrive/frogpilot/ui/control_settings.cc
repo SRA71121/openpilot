@@ -65,6 +65,14 @@ FrogPilotControlsPanel::FrogPilotControlsPanel(SettingsWindow *parent) : FrogPil
     {"ReverseCruise", "Reverse Cruise Increase", "Reverses the 'long press' functionality when increasing the max set speed. Useful to increase the max speed quickly.", ""},
     {"SetSpeedOffset", "Set Speed Offset", "Set an offset for your desired set speed.", ""},
 
+    {"SmartEcoCruise", "Smart Eco Cruise", "Energy logging, trip scores and leaderboards, plus optional power-saving speed control when openpilot controls your speed.", "../frogpilot/assets/toggle_icons/icon_custom.png"},
+    {"SmartEcoScoreUI", "Show Eco Score and Range", "Show a live 0-10 efficiency score and 'range at this pace' on the driving screen.", ""},
+    {"SmartEcoLimiter", "Power Ceiling", "When openpilot controls your speed, limit acceleration to each speed band's kW ceiling below. The gas pedal always overrides it and braking is never limited.", ""},
+    {"SmartEcoGlide", "Highway Glide", "Above 35 mph with openpilot controlling speed: coast down hills and let speed float a little above your set speed instead of regenerating, then glide back down. Turns off for close or slower lead cars and curves.", ""},
+    {"SmartEcoGlideBand", "Glide Above Set Speed", "How far above your set speed Highway Glide may let the car coast before regen holds it.", ""},
+    {"SmartEcoSagBand", "Allowed Slowdown On Climbs", "How far below your set speed the Power Ceiling may let the car slow on a hill before it holds speed anyway.", ""},
+    {"SmartEco12VWarn", "12V Low Warning Below", "Warn when the 12V battery's resting voltage (parked, car off) drops below this. Lead-acid: ~12.2 V is about half charged. LiFePO4 rests higher (~13.2 V).", ""},
+
     {"SpeedLimitController", "Speed Limit Controller", "Automatically adjust vehicle speed to match speed limits using 'Open Street Map's, 'Navigate On openpilot', or your car's dashboard (TSS2 Toyotas only).", "../assets/offroad/icon_speed_limit.png"},
     {"SLCControls", "Controls Settings", "Manage settings for the controls.", ""},
     {"Offset1", "Speed Limit Offset (0-34 mph)", "Speed limit offset for speed limits between 0-34 mph.", ""},
@@ -452,6 +460,39 @@ FrogPilotControlsPanel::FrogPilotControlsPanel(SettingsWindow *parent) : FrogPil
       slcPriorityButton->setValue(initialPriorities.join(", "));
       addItem(slcPriorityButton);
 
+    } else if (param == "SmartEcoCruise") {
+      FrogPilotParamManageControl *smartEcoToggle = new FrogPilotParamManageControl(param, title, desc, icon, this);
+      QObject::connect(smartEcoToggle, &FrogPilotParamManageControl::manageButtonClicked, this, [this]() {
+        parentToggleClicked();
+        for (auto &[key, toggle] : toggles) {
+          toggle->setVisible(smartEcoKeys.find(key.c_str()) != smartEcoKeys.end());
+        }
+        for (FrogPilotDualParamControl *row : smartEcoBandRows) {
+          row->setVisible(true);
+        }
+      });
+      toggle = smartEcoToggle;
+    } else if (param == "SmartEcoGlideBand" || param == "SmartEcoSagBand") {
+      toggle = new FrogPilotParamValueControl(param, title, desc, icon, 1, 5, std::map<int, QString>(), this, false, " mph");
+    } else if (param == "SmartEco12VWarn") {
+      // Per-band kW ranges (min / max) shown above the 12V setting
+      const std::vector<std::pair<int, QString>> bandNames {
+        {1, "Residential 0-20"}, {2, "Local 20-40"}, {3, "County 40-55"}, {4, "Highway 55-70"}, {5, "High-speed 70+"}};
+      for (const auto &[i, name] : bandNames) {
+        FrogPilotParamValueControl *bandMin = new FrogPilotParamValueControl(QString("SmartEcoB%1Min").arg(i), name + " min",
+                                                                             "Lower end of the eco range for this speed band (mph).", "",
+                                                                             0, 60, std::map<int, QString>(), this, false, " kW", 1, 0.5);
+        FrogPilotParamValueControl *bandMax = new FrogPilotParamValueControl(QString("SmartEcoB%1Max").arg(i), " max",
+                                                                             "Ceiling for this speed band. Scores, logs and the Power Ceiling use this value.", "",
+                                                                             0, 60, std::map<int, QString>(), this, false, " kW", 1, 0.5);
+        QObject::connect(bandMin, &FrogPilotParamValueControl::valueChanged, [this]() { updateToggles(); });
+        QObject::connect(bandMax, &FrogPilotParamValueControl::valueChanged, [this]() { updateToggles(); });
+        FrogPilotDualParamControl *row = new FrogPilotDualParamControl(bandMin, bandMax, this, true);
+        addItem(row);
+        smartEcoBandRows.push_back(row);
+      }
+      toggle = new FrogPilotParamValueControl(param, title, desc, icon, 11.5, 13.5, std::map<int, QString>(), this, false, " V", 1, 0.1);
+
     } else if (param == "VisionTurnControl") {
       FrogPilotParamManageControl *visionTurnControlToggle = new FrogPilotParamManageControl(param, title, desc, icon, this);
       QObject::connect(visionTurnControlToggle, &FrogPilotParamManageControl::manageButtonClicked, this, [this]() {
@@ -686,9 +727,13 @@ void FrogPilotControlsPanel::hideSubToggles() {
   slcPriorityButton->setVisible(false);
   standardProfile->setVisible(false);
   relaxedProfile->setVisible(false);
+  for (FrogPilotDualParamControl *row : smartEcoBandRows) {
+    row->setVisible(false);
+  }
 
   for (auto &[key, toggle] : toggles) {
     bool subToggles = aolKeys.find(key.c_str()) != aolKeys.end() ||
+                      smartEcoKeys.find(key.c_str()) != smartEcoKeys.end() ||
                       conditionalExperimentalKeys.find(key.c_str()) != conditionalExperimentalKeys.end() ||
                       experimentalModeActivationKeys.find(key.c_str()) != experimentalModeActivationKeys.end() ||
                       fireTheBabysitterKeys.find(key.c_str()) != fireTheBabysitterKeys.end() ||

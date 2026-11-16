@@ -67,6 +67,11 @@ struct SmartEcoState @0x80ae746ee2596b11 {
   tripExcessKwh @21 :Float32;     # energy used above the eco ceiling
   tripDistanceKm @22 :Float32;
   tripOverTargetS @23 :Float32;
+  ecoScore @24 :Float32;           # 0-10, smoothed, -1 when not moving yet
+  ecoTripScore @25 :Float32;       # time-weighted trip average, -1 if not enough data
+  paceMiPerKwh @26 :Float32;       # last few minutes, driving energy only; 0 if unknown
+  paceRangeMi @27 :Float32;        # full-pack range at that pace; 0 if unknown
+  driveKw @28 :Float32;            # propulsion power (no heater)
 }
 
 struct CustomReserved5 @0xa5cd762cd951a455 {

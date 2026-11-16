@@ -196,6 +196,7 @@ private:
   void drawLeadInfo(QPainter &p);
   void drawSLCConfirmation(QPainter &p);
   void drawStatusBar(QPainter &p);
+  void drawEcoScore(QPainter &p);
   void drawTurnSignals(QPainter &p);
 
   // FrogPilot variables

@@ -52,5 +52,9 @@
   "Offroad_Recalibration": {
     "text": "openpilot detected a change in the device's mounting position. Ensure the device is fully seated in the mount and the mount is firmly secured to the windshield.",
     "severity": 0
+  },
+  "Offroad_SmartEco12VLow": {
+    "text": "12V battery is resting at %1 V. Consider charging or testing it, especially before cold mornings.",
+    "severity": 0
   }
 }

@@ -46,6 +46,7 @@ class TripLog:
     self.measured_s = 0.0
     self.excess_kwh = 0.0
     self.over_target_s = 0.0
+    self.eco_score: Optional[float] = None
     self.start_pos: Optional[List[float]] = None
     self.end_pos: Optional[List[float]] = None
     # bins: str(bin_index) -> [time_s, drive_kwh, steady_s, steady_drive_kwh, steady_measured_s, steady_measured_kwh]
@@ -102,12 +103,13 @@ class TripLog:
       "accessory_kwh": acc,
       "excess_kwh": self.excess_kwh,
       "over_target_min": self.over_target_s / 60.0,
+      "eco_score": self.eco_score,
     }
 
   def to_dict(self) -> dict:
     return {k: getattr(self, k) for k in ("start_epoch", "end_epoch", "dist_m", "time_s", "moving_s", "drive_kwh",
                                            "measured_kwh", "measured_drive_kwh", "measured_s", "excess_kwh",
-                                           "over_target_s", "start_pos", "end_pos", "bins")}
+                                           "over_target_s", "eco_score", "start_pos", "end_pos", "bins")}
 
   @classmethod
   def from_dict(cls, d: dict) -> "TripLog":
@@ -251,3 +253,60 @@ def leaderboards(trips: List[dict], routes: List[dict], top: int = 5) -> List[di
       runs.sort(key=lambda t: t["drive_mi_per_kwh"], reverse=True)
       boards.append({"route": r, "runs": runs[:top], "count": len(runs)})
   return boards
+
+
+# --- seasons and multi-stop journeys -------------------------------------------
+
+WINTER_MONTHS = {11, 12, 1, 2, 3}
+JOURNEY_GAP_S = 30 * 60.0
+
+
+def season_of(epoch: float) -> str:
+  return "Winter" if time.localtime(epoch).tm_mon in WINTER_MONTHS else "Summer"
+
+
+def season_stats(trips: List[dict], routes: List[dict]) -> List[dict]:
+  """Per route and season: runs, average and best driving mi/kWh, average heat."""
+  out = []
+  for r in routes:
+    for season in ("Summer", "Winter"):
+      runs = [t for t in trips if t.get("route_id") == r["id"] and t["drive_mi_per_kwh"]
+              and t["miles"] >= MIN_SCORED_MILES and season_of(t["start"]) == season]
+      if not runs:
+        continue
+      miles = sum(t["miles"] for t in runs)
+      kwh = sum(t["drive_kwh"] for t in runs)
+      heat = [t["accessory_kwh"] for t in runs if t["accessory_kwh"] is not None]
+      out.append({"route": r["name"], "season": season, "runs": len(runs),
+                  "avg_mi_per_kwh": miles / kwh if kwh > 0.01 else None,
+                  "best_mi_per_kwh": max(t["drive_mi_per_kwh"] for t in runs),
+                  "avg_heat_kwh": sum(heat) / len(heat) if heat else None})
+  return out
+
+
+def journeys(trips: List[dict], route_names: Dict[int, str], gap_s: float = JOURNEY_GAP_S) -> List[dict]:
+  """Chain drives with short stops between them (here -> here -> here). Newest first; 2+ legs only."""
+  legs = sorted(trips, key=lambda t: t["start"])
+  groups: List[List[dict]] = []
+  for t in legs:
+    if groups and t["start"] - groups[-1][-1]["end"] <= gap_s:
+      groups[-1].append(t)
+    else:
+      groups.append([t])
+  out = []
+  for g in groups:
+    if len(g) < 2:
+      continue
+    miles = sum(t["miles"] for t in g)
+    kwh = sum(t["drive_kwh"] for t in g)
+    heat = [t["accessory_kwh"] for t in g if t["accessory_kwh"] is not None]
+    out.append({
+      "start": g[0]["start"], "end": g[-1]["end"], "legs": len(g), "miles": miles, "drive_kwh": kwh,
+      "drive_mi_per_kwh": miles / kwh if kwh > 0.01 else None,
+      "accessory_kwh": sum(heat) if heat else None,
+      "minutes": (g[-1]["end"] - g[0]["start"]) / 60.0,
+      "leg_starts": [int(t["start"]) for t in g],
+      "leg_names": [route_names.get(t.get("route_id"), f"{t['miles']:.1f} mi") for t in g],
+    })
+  out.sort(key=lambda j: j["start"], reverse=True)
+  return out

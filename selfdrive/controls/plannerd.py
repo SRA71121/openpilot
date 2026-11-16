@@ -32,8 +32,10 @@ def plannerd_thread():
   frogpilot_planner = FrogPilotPlanner(CP, params, params_memory)
   longitudinal_planner = LongitudinalPlanner(CP)
   pm = messaging.PubMaster(['longitudinalPlan', 'uiPlan', 'frogpilotPlan'])
-  sm = messaging.SubMaster(['carControl', 'carState', 'controlsState', 'radarState', 'modelV2', 'frogpilotNavigation'],
-                           poll='modelV2', ignore_avg_freq=['radarState'])
+  # liveLocationKalman is optional (road grade for Smart Eco); it never affects plan validity
+  sm = messaging.SubMaster(['carControl', 'carState', 'controlsState', 'radarState', 'modelV2', 'frogpilotNavigation', 'liveLocationKalman'],
+                           poll='modelV2', ignore_avg_freq=['radarState', 'liveLocationKalman'],
+                           ignore_alive=['liveLocationKalman'], ignore_valid=['liveLocationKalman'])
 
   while True:
     sm.update()

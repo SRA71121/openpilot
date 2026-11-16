@@ -1,6 +1,7 @@
 #pragma once
 
 #include <set>
+#include <vector>
 
 #include "selfdrive/frogpilot/ui/frogpilot_ui_functions.h"
 #include "selfdrive/ui/qt/offroad/settings.h"
@@ -48,6 +49,8 @@ private:
   std::set<QString> longitudinalTuneKeys = {"AccelerationProfile", "DecelerationProfile", "AggressiveAcceleration", "SmoothBraking", "StoppingDistance"};
   std::set<QString> mtscKeys = {"DisableMTSCSmoothing", "MTSCAggressiveness", "MTSCCurvatureCheck", "MTSCLimit"};
   std::set<QString> qolKeys = {"DisableOnroadUploads", "HigherBitrate", "NavChill", "PauseLateralOnSignal", "ReverseCruise", "SetSpeedOffset"};
+  std::set<QString> smartEcoKeys = {"SmartEcoScoreUI", "SmartEcoLimiter", "SmartEcoGlide", "SmartEcoGlideBand", "SmartEcoSagBand", "SmartEco12VWarn"};
+  std::vector<FrogPilotDualParamControl*> smartEcoBandRows;
   std::set<QString> speedLimitControllerKeys = {"SLCControls", "SLCQOL", "SLCVisuals"};
   std::set<QString> speedLimitControllerControlsKeys = {"Offset1", "Offset2", "Offset3", "Offset4", "SLCFallback", "SLCOverride", "SLCPriority"};
   std::set<QString> speedLimitControllerQOLKeys = {"SLCConfirmation", "ForceMPHDashboard", "SetSpeedLimit"};

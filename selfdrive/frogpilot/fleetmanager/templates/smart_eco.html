@@ -6,7 +6,7 @@
 <title>Smart Eco - Trips</title>
 <style>
   /* Self-contained on purpose: works on the comma hotspot with no internet */
-  :root { --bg:#111418; --card:#1b2027; --line:#2c333d; --fg:#e8ecf1; --dim:#9aa5b1; --good:#3ecf8e; --warn:#f5a524; --heat:#f87171; --accent:#60a5fa; }
+  :root { --bg:#111418; --card:#1b2027; --line:#2c333d; --fg:#e8ecf1; --dim:#9aa5b1; --good:#6FA8FF; --warn:#f5a524; --heat:#f87171; --accent:#60a5fa; }
   * { box-sizing:border-box; }
   body { margin:0; font:15px/1.4 -apple-system,Segoe UI,Roboto,sans-serif; background:var(--bg); color:var(--fg); }
   header { padding:14px 16px; display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--line); }
@@ -48,6 +48,7 @@
       <div class="stat"><div class="v">{{ '%.0f' % trip.minutes }}</div><div class="l">minutes</div></div>
       <div class="stat"><div class="v">{{ '%.0f' % trip.avg_mph }}</div><div class="l">avg mph moving</div></div>
       <div class="stat"><div class="v warn">{{ '%.2f' % trip.excess_kwh }}</div><div class="l">kWh over eco bands</div></div>
+      <div class="stat"><div class="v">{{ '%.1f' % trip.eco_score if trip.eco_score is not none else '-' }}</div><div class="l">eco score</div></div>
     </div>
   </div>
 {% else %}
@@ -71,12 +72,13 @@
       <button type="submit">Save</button>
     </form>
     <div class="scroll"><table>
-      <tr><th>#</th><th>Date</th><th>mi/kWh</th><th>miles</th><th>min</th><th>heat kWh</th><th>over eco</th></tr>
+      <tr><th>#</th><th>Date</th><th>mi/kWh</th><th>score</th><th>miles</th><th>min</th><th>heat kWh</th><th>over eco</th></tr>
       {% for r in b.runs %}
       <tr class="{{ 'rank1' if loop.first }}">
         <td>{{ loop.index }}</td>
         <td><a class="row" href="/smart_eco/trip/{{ r.start|int }}"><span class="ts short" data-t="{{ r.start }}"></span></a></td>
         <td class="good">{{ '%.2f' % r.drive_mi_per_kwh }}</td>
+        <td>{{ '%.1f' % r.eco_score if r.eco_score is not none else '-' }}</td>
         <td>{{ '%.1f' % r.miles }}</td>
         <td>{{ '%.0f' % r.minutes }}</td>
         <td class="heat">{{ '%.2f' % r.accessory_kwh if r.accessory_kwh is not none else '-' }}</td>
@@ -89,6 +91,73 @@
   {% if not boards %}
   <div class="card dim">No repeat routes yet. Drive the same trip twice (e.g. home &rarr; work) and its leaderboard appears here.</div>
   {% endif %}
+
+  {% if seasons %}
+  <div class="card">
+    <h2>Summer vs winter</h2>
+    <div class="scroll"><table>
+      <tr><th>Route</th><th>Season</th><th>runs</th><th>avg mi/kWh</th><th>best</th><th>avg heat</th></tr>
+      {% for s in seasons %}
+      <tr>
+        <td>{{ s.route }}</td><td>{{ s.season }}</td><td>{{ s.runs }}</td>
+        <td class="good">{{ '%.2f' % s.avg_mi_per_kwh if s.avg_mi_per_kwh else '-' }}</td>
+        <td>{{ '%.2f' % s.best_mi_per_kwh }}</td>
+        <td class="heat">{{ '%.2f' % s.avg_heat_kwh if s.avg_heat_kwh is not none else '-' }}</td>
+      </tr>
+      {% endfor %}
+    </table></div>
+  </div>
+  {% endif %}
+
+  {% if journeys %}
+  <div class="card">
+    <h2>Multi-stop journeys</h2>
+    <div class="scroll"><table>
+      <tr><th>Date</th><th>stops</th><th>miles</th><th>mi/kWh</th><th>kWh</th><th>heat</th></tr>
+      {% for j in journeys %}
+      <tr>
+        <td><span class="ts short" data-t="{{ j.start }}"></span></td>
+        <td>{{ j.legs }}</td>
+        <td>{{ '%.1f' % j.miles }}</td>
+        <td class="good">{{ '%.2f' % j.drive_mi_per_kwh if j.drive_mi_per_kwh else '-' }}</td>
+        <td>{{ '%.2f' % j.drive_kwh }}</td>
+        <td class="heat">{{ '%.2f' % j.accessory_kwh if j.accessory_kwh is not none else '-' }}</td>
+      </tr>
+      <tr><td colspan="6" class="dim" style="text-align:left;white-space:normal;font-size:12px">
+        {% for n in j.leg_names %}{{ n }}{% if not loop.last %} &rarr; {% endif %}{% endfor %}
+      </td></tr>
+      {% endfor %}
+    </table></div>
+    <div class="note">Drives with stops under 30 minutes between them are grouped into one journey.</div>
+  </div>
+  {% endif %}
+
+  <div class="card">
+    <h2>12V battery</h2>
+    {% if v12.latest is not none %}
+    <div class="stats">
+      <div class="stat"><div class="v {{ 'heat' if v12.latest < v12.warn else 'good' }}">{{ '%.2f' % v12.latest }} V</div><div class="l">latest resting (parked)</div></div>
+      <div class="stat"><div class="v dim">{{ '%.1f' % v12.warn }} V</div><div class="l">warning below</div></div>
+    </div>
+    {% if v12.chart %}
+    <svg viewBox="0 0 600 160" preserveAspectRatio="none" style="width:100%;height:140px;margin-top:10px;background:var(--bg);border-radius:8px">
+      <line x1="0" x2="600" y1="{{ v12.chart.warn_y }}" y2="{{ v12.chart.warn_y }}" stroke="#f87171" stroke-dasharray="6 6" stroke-width="1"/>
+      <polyline fill="none" stroke="#60a5fa" stroke-width="2" points="{{ v12.chart.points }}"/>
+    </svg>
+    <div class="note">Last 3 days. High plateaus (~14 V) are drives; the dashed line is your warning level.</div>
+    {% endif %}
+    {% if v12.pre_drive %}
+    <div class="scroll"><table style="margin-top:10px">
+      <tr><th>Before drive</th><th>resting V</th></tr>
+      {% for t, v in v12.pre_drive %}
+      <tr><td><span class="ts short" data-t="{{ t }}"></span></td><td class="{{ 'heat' if v < v12.warn else '' }}">{{ '%.2f' % v }}</td></tr>
+      {% endfor %}
+    </table></div>
+    {% endif %}
+    {% else %}
+    <div class="dim">No resting readings yet. They start 30 minutes after you park, while the comma is still on.</div>
+    {% endif %}
+  </div>
 
   <div class="card">
     <h2>Recent trips</h2>

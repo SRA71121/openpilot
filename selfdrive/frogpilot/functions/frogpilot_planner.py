@@ -13,6 +13,7 @@ from openpilot.selfdrive.frogpilot.functions.frogpilot_functions import CRUISING
 from openpilot.selfdrive.frogpilot.functions.conditional_experimental_mode import ConditionalExperimentalMode
 from openpilot.selfdrive.frogpilot.functions.map_turn_speed_controller import MapTurnSpeedController
 from openpilot.selfdrive.frogpilot.functions.speed_limit_controller import SpeedLimitController
+from openpilot.selfdrive.frogpilot.functions.smart_eco import EcoLongControl, parse_config
 
 
 TARGET_LAT_A = 1.9  # m/s^2
@@ -38,6 +39,9 @@ class FrogPilotPlanner:
     self.vtsc_target = 0
 
     self.accel_limits = [A_CRUISE_MIN, get_max_accel(0)]
+
+    self.eco_long = None
+    self.eco_state = "off"
 
     self.update_frogpilot_params(params)
 
@@ -92,6 +96,26 @@ class FrogPilotPlanner:
 
     # Update the max allowed speed
     self.v_cruise = self.update_v_cruise(carState, controlsState, enabled, modelData, v_cruise, v_ego)
+
+    # Smart Eco (opt-in): power ceiling + highway glide. Only when openpilot controls speed in
+    # normal (non-experimental) mode. Only lowers max acceleration; braking is never limited.
+    self.eco_state = "off"
+    if self.eco_long is not None and enabled and self.CP.openpilotLongitudinalControl and mpc.mode == 'acc':
+      pitch = 0.0
+      try:
+        llk = sm['liveLocationKalman']
+        if sm.valid['liveLocationKalman'] and llk.calibratedOrientationNED.valid and len(llk.calibratedOrientationNED.value) == 3:
+          pitch = float(llk.calibratedOrientationNED.value[1])
+      except Exception:
+        pitch = 0.0
+      lead = sm['radarState'].leadOne
+      cap, v_target = self.eco_long.update(v_ego, v_cruise, self.v_cruise, pitch,
+                                           bool(lead.status), float(lead.dRel), float(lead.vLead), bool(carState.gasPressed))
+      if cap is not None:
+        self.accel_limits[1] = max(min(self.accel_limits[1], cap), self.accel_limits[0])
+      if v_target is not None and self.v_cruise >= v_cruise - 0.5:
+        self.v_cruise = v_target
+      self.eco_state = self.eco_long.state
 
   def update_v_cruise(self, carState, controlsState, enabled, modelData, v_cruise, v_ego):
     # Offsets to adjust the max speed to match the cluster
@@ -235,6 +259,22 @@ class FrogPilotPlanner:
     self.aggressive_acceleration = longitudinal_tune and params.get_bool("AggressiveAcceleration")
     self.increased_stopping_distance = params.get_int("StoppingDistance") * (1 if self.is_metric else CV.FOOT_TO_METER) if longitudinal_tune else 0
     self.smoother_braking = longitudinal_tune and params.get_bool("SmoothBraking")
+
+    # Smart Eco speed control (both off by default)
+    eco_on = params.get_bool("SmartEcoCruise")
+    eco_limiter = eco_on and params.get_bool("SmartEcoLimiter")
+    eco_glide = eco_on and params.get_bool("SmartEcoGlide")
+    if eco_limiter or eco_glide:
+      bands = [(params.get_float(f"SmartEcoB{i}Min"), params.get_float(f"SmartEcoB{i}Max")) for i in range(1, 6)]
+      cfg = parse_config(params.get("SmartEcoProfiles"), params.get("SmartEcoModel"), bands)
+      glide_band = params.get_float("SmartEcoGlideBand") or 3.0
+      sag_band = params.get_float("SmartEcoSagBand") or 3.0
+      if self.eco_long is None:
+        self.eco_long = EcoLongControl(cfg, self.CP.mass, eco_limiter, eco_glide, glide_band, sag_band)
+      else:
+        self.eco_long.reconfigure(cfg, self.CP.mass, eco_limiter, eco_glide, glide_band, sag_band)
+    else:
+      self.eco_long = None
 
     self.map_turn_speed_controller = params.get_bool("MTSCEnabled")
     if self.map_turn_speed_controller:

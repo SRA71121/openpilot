@@ -21,7 +21,7 @@ from cereal import car, log
 from openpilot.common.params import Params
 from openpilot.common.realtime import Ratekeeper
 from openpilot.common.swaglog import cloudlog
-from openpilot.selfdrive.frogpilot.functions.smart_eco import EcoInputs, MeasuredPower, SmartEcoMonitor, parse_config
+from openpilot.selfdrive.frogpilot.functions.smart_eco import EcoInputs, EcoScore, MeasuredPower, SmartEcoMonitor, parse_config
 from openpilot.selfdrive.frogpilot.functions import smart_eco_trips as trips
 
 RATE_HZ = 20
@@ -31,6 +31,10 @@ HV_MSG = "BECMBatteryVoltageCurrent"
 HV_ADDR = 711                # 0x2C7
 PT_BUS = 0
 CHECKPOINT_S = 30.0
+
+
+def read_bands(params):
+  return [(params.get_float(f"SmartEcoB{i}Min"), params.get_float(f"SmartEcoB{i}Max")) for i in range(1, 6)]
 
 
 def make_hv_parser(CP):
@@ -53,7 +57,9 @@ def main():
 
   profiles_raw = params.get("SmartEcoProfiles")
   model_raw = params.get("SmartEcoModel")
-  cfg = parse_config(profiles_raw, model_raw)
+  bands = read_bands(params)
+  cfg = parse_config(profiles_raw, model_raw, bands)
+  score = EcoScore(float(cfg.model.get("usable_kwh") or 65.0))
 
   measured = MeasuredPower(int(cfg.model.get("measured_current_sign") or 0)) if hv_parser else None
   monitor = SmartEcoMonitor(cfg, car_mass, measured)
@@ -82,7 +88,7 @@ def main():
 
   try:
     _loop(params, monitor, measured, hv_parser, can_sock, sm, pm, rk, trip, car_mass,
-          profiles_raw, model_raw, start_t, last_reload, hv_seen, last_checkpoint, last_t)
+          profiles_raw, model_raw, bands, score, start_t, last_reload, hv_seen, last_checkpoint, last_t)
   finally:
     try:
       trips.finalize(trip)
@@ -91,7 +97,7 @@ def main():
 
 
 def _loop(params, monitor, measured, hv_parser, can_sock, sm, pm, rk, trip, car_mass,
-          profiles_raw, model_raw, start_t, last_reload, hv_seen, last_checkpoint, last_t):
+          profiles_raw, model_raw, bands, score, start_t, last_reload, hv_seen, last_checkpoint, last_t):
   while True:
     sm.update(0)
     now = time.monotonic()
@@ -99,10 +105,10 @@ def _loop(params, monitor, measured, hv_parser, can_sock, sm, pm, rk, trip, car_
     # Live-reload settings (cheap: params read every few seconds)
     if now - last_reload > PARAMS_RELOAD_S:
       last_reload = now
-      p_raw, m_raw = params.get("SmartEcoProfiles"), params.get("SmartEcoModel")
-      if p_raw != profiles_raw or m_raw != model_raw:
-        profiles_raw, model_raw = p_raw, m_raw
-        monitor.reconfigure(parse_config(profiles_raw, model_raw), car_mass)
+      p_raw, m_raw, b_now = params.get("SmartEcoProfiles"), params.get("SmartEcoModel"), read_bands(params)
+      if p_raw != profiles_raw or m_raw != model_raw or b_now != bands:
+        profiles_raw, model_raw, bands = p_raw, m_raw, b_now
+        monitor.reconfigure(parse_config(profiles_raw, model_raw, bands), car_mass)
 
     # Optional measured power
     if can_sock is not None:
@@ -120,12 +126,12 @@ def _loop(params, monitor, measured, hv_parser, can_sock, sm, pm, rk, trip, car_
     cs = sm["carState"]
     llk = sm["liveLocationKalman"]
     pitch_valid = (sm.valid["liveLocationKalman"] and llk.status == log.LiveLocationKalman.Status.valid
-                   and llk.orientationNED.valid and len(llk.orientationNED.value) == 3)
+                   and llk.calibratedOrientationNED.valid and len(llk.calibratedOrientationNED.value) == 3)
     inp = EcoInputs(
       t=now,
       v_ego=cs.vEgo,
       a_ego=cs.aEgo,
-      pitch=llk.orientationNED.value[1] if pitch_valid else 0.0,
+      pitch=llk.calibratedOrientationNED.value[1] if pitch_valid else 0.0,
       pitch_valid=pitch_valid,
       gas_pressed=cs.gasPressed,
       long_active=sm["carControl"].longActive,
@@ -139,6 +145,8 @@ def _loop(params, monitor, measured, hv_parser, can_sock, sm, pm, rk, trip, car_
     dt = min(max(now - last_t, 0.0), 0.5)
     last_t = now
     trip.update(dt, inp.v_ego, inp.a_ego, o.drive_kw, o.measured_kw, o.power_kw - o.target_kw, o.over_target, pos)
+    score.update(dt, inp.v_ego, o.drive_kw, o.target_kw)
+    trip.eco_score = score.trip_score
     if now - last_checkpoint > CHECKPOINT_S:
       last_checkpoint = now
       try:
@@ -174,6 +182,11 @@ def _loop(params, monitor, measured, hv_parser, can_sock, sm, pm, rk, trip, car_
     s.tripExcessKwh = o.trip_excess_kwh
     s.tripDistanceKm = o.trip_distance_km
     s.tripOverTargetS = o.trip_over_target_s
+    s.ecoScore = score.score if score.score is not None else -1.0
+    s.ecoTripScore = score.trip_score if score.trip_score is not None else -1.0
+    s.paceMiPerKwh = score.pace_mi_per_kwh or 0.0
+    s.paceRangeMi = score.pace_range_mi or 0.0
+    s.driveKw = o.drive_kw
     pm.send("smartEcoState", msg)
 
     rk.keep_time()

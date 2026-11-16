@@ -91,6 +91,10 @@ def manager_init() -> None:
     # Default FrogPilot parameters
     ("AccelerationPath", "1"),
     ("AccelerationProfile", "2"),
+    ("SmartEcoCruise", "1"),
+    ("SmartEcoModel", ""),
+    ("SmartEcoOnroadUI", "1"),
+    ("SmartEcoProfiles", ""),
     ("AdjacentPath", "0"),
     ("AdjacentPathMetrics", "0"),
     ("AdjustablePersonalities", "1"),

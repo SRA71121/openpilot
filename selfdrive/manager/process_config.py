@@ -54,6 +54,9 @@ def allow_logging(started, params, params_memory, CP: car.CarParams) -> bool:
 def osm(started, params, params_memory, CP: car.CarParams) -> bool:
   return params_memory.get_bool("RoadNameUI") or params_memory.get_bool("SpeedLimitController")
 
+def smart_eco(started, params, params_memory, CP: car.CarParams) -> bool:
+  return started and params.get_bool("SmartEcoCruise")
+
 procs = [
   DaemonProcess("manage_athenad", "selfdrive.athena.manage_athenad", "AthenadPid"),
 
@@ -104,6 +107,7 @@ procs = [
   PythonProcess("fleet_manager", "selfdrive.frogpilot.fleetmanager.fleet_manager", always_run),
   PythonProcess("frogpilot_process", "selfdrive.frogpilot.functions.frogpilot_process", always_run),
   PythonProcess("mapd", "selfdrive.frogpilot.functions.mapd", osm),
+  PythonProcess("smart_ecod", "selfdrive.frogpilot.functions.smart_ecod", smart_eco),
 ]
 
 managed_processes = {p.name: p for p in procs}

@@ -29,13 +29,12 @@ STEADY_ACCEL = 0.15     # |a| below this (m/s^2) counts as steady cruising
 MIN_SCORED_MILES = 1.0
 ROUTE_RADIUS_M = 400.0
 
-# Event detection
-EVENT_ACCEL = 0.8       # m/s^2 sustained -> hard acceleration
-EVENT_POWER_X = 1.5     # or driving power above 1.5x the band ceiling (and above EVENT_MIN_KW)
-EVENT_MIN_KW = 15.0
-EVENT_DECEL = -1.5      # m/s^2 sustained -> hard slowing
+# Event detection (acceleration only; power vs your ceilings is tracked separately as "lost")
+EVENT_ACCEL = 1.2       # m/s^2 (~0.12 g) sustained -> hard acceleration
+PASS_ACCEL = 1.0        # m/s^2 with a turn signal at/above PASS_MIN_MPH -> pass
+PASS_MIN_MPH = 40.0
+EVENT_DECEL = -1.8      # m/s^2 (~0.18 g) sustained -> hard slowing
 EVENT_HOLD_S = 1.0      # condition must hold this long to count, and clear this long to end
-PASS_MIN_MPH = 40.0     # hard acceleration with a turn signal at/above this speed = pass
 MAX_EVENTS = 300
 
 
@@ -125,7 +124,7 @@ class TripLog:
 
   # --- events ---------------------------------------------------------------
   def _track_event(self, dt, v, a, drive_kw, target_kw, blinker):
-    accel = a > EVENT_ACCEL or (drive_kw > max(EVENT_MIN_KW, EVENT_POWER_X * target_kw))
+    accel = a > EVENT_ACCEL or (blinker and v * MPH >= PASS_MIN_MPH and a > PASS_ACCEL)
     slow = a < EVENT_DECEL
     kind = "accel" if accel else "slow" if slow else None
     ev = self._ev

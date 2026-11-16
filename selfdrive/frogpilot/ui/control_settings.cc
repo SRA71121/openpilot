@@ -71,7 +71,7 @@ FrogPilotControlsPanel::FrogPilotControlsPanel(SettingsWindow *parent) : FrogPil
     {"SmartEcoGlide", "Highway Glide", "Above 35 mph with openpilot controlling speed: coast down hills and let speed float a little above your set speed instead of regenerating, then glide back down. Turns off for close or slower lead cars and curves.", ""},
     {"SmartEcoGlideBand", "Glide Above Set Speed", "How far above your set speed Highway Glide may let the car coast before regen holds it.", ""},
     {"SmartEcoSagBand", "Allowed Slowdown On Climbs", "How far below your set speed the Power Ceiling may let the car slow on a hill before it holds speed anyway.", ""},
-    {"SmartEco12VWarn", "12V Low Warning Below", "Warn when the 12V battery's resting voltage (parked, car off) drops below this. Lead-acid: ~12.2 V is about half charged. LiFePO4 rests higher (~13.2 V).", ""},
+    {"SmartEco12VWarn", "12V Low Warning Below", "One 12V reading is taken per park, right before the comma shuts itself off (your Device Shutdown Timer sets how long the battery has rested). Warn when it drops below this. Lead-acid: ~12.2 V is about half charged. LiFePO4 rests higher (~13.2 V).", ""},
 
     {"SpeedLimitController", "Speed Limit Controller", "Automatically adjust vehicle speed to match speed limits using 'Open Street Map's, 'Navigate On openpilot', or your car's dashboard (TSS2 Toyotas only).", "../assets/offroad/icon_speed_limit.png"},
     {"SLCControls", "Controls Settings", "Manage settings for the controls.", ""},

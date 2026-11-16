@@ -144,7 +144,8 @@ def _loop(params, monitor, measured, hv_parser, can_sock, sm, pm, rk, trip, car_
       pos = (llk.positionGeodetic.value[0], llk.positionGeodetic.value[1])
     dt = min(max(now - last_t, 0.0), 0.5)
     last_t = now
-    trip.update(dt, inp.v_ego, inp.a_ego, o.drive_kw, o.measured_kw, o.power_kw - o.target_kw, o.over_target, pos)
+    trip.update(dt, inp.v_ego, inp.a_ego, o.drive_kw, o.target_kw, o.measured_kw, pos,
+                bool(cs.leftBlinker or cs.rightBlinker))
     score.update(dt, inp.v_ego, o.drive_kw, o.target_kw)
     trip.eco_score = score.trip_score
     if now - last_checkpoint > CHECKPOINT_S:

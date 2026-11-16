@@ -6,7 +6,7 @@
 <title>Smart Eco - Trips</title>
 <style>
   /* Self-contained on purpose: works on the comma hotspot with no internet */
-  :root { --bg:#111418; --card:#1b2027; --line:#2c333d; --fg:#e8ecf1; --dim:#9aa5b1; --good:#6FA8FF; --warn:#f5a524; --heat:#f87171; --accent:#60a5fa; }
+  :root { --bg:#111418; --card:#1b2027; --line:#2c333d; --fg:#e8ecf1; --dim:#9aa5b1; --good:#6FA8FF; --warn:#f5a524; --bad:#f87171; --accent:#60a5fa; }
   * { box-sizing:border-box; }
   body { margin:0; font:15px/1.4 -apple-system,Segoe UI,Roboto,sans-serif; background:var(--bg); color:var(--fg); }
   header { padding:14px 16px; display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--line); }
@@ -20,7 +20,7 @@
   th, td { padding:7px 6px; text-align:right; border-bottom:1px solid var(--line); white-space:nowrap; }
   th { color:var(--dim); font-weight:500; font-size:12px; } th:first-child, td:first-child { text-align:left; }
   .scroll { overflow-x:auto; }
-  .good { color:var(--good); } .heat { color:var(--heat); } .warn { color:var(--warn); } .dim { color:var(--dim); }
+  .good { color:var(--good); } .bad { color:var(--bad); } .warn { color:var(--warn); } .dim { color:var(--dim); }
   .bar { height:8px; background:var(--accent); border-radius:4px; display:inline-block; vertical-align:middle; }
   .rank1 td { font-weight:600; }
   form.rename { display:flex; gap:6px; margin:0 0 10px; }
@@ -37,29 +37,65 @@
 </header>
 <main>
 
+{% macro num(x, fmt='%.2f', dash='-') %}{{ fmt % x if x is not none else dash }}{% endmacro %}
+
 {% if trip %}
   <div class="card">
     <h2><span class="ts" data-t="{{ trip.start }}"></span></h2>
     <div class="stats">
-      <div class="stat"><div class="v good">{{ '%.2f' % trip.drive_mi_per_kwh if trip.drive_mi_per_kwh else '-' }}</div><div class="l">mi/kWh (driving)</div></div>
+      <div class="stat"><div class="v good">{{ num(trip.drive_mi_per_kwh) }}</div><div class="l">mi/kWh (total)</div></div>
+      <div class="stat"><div class="v">{{ num(trip.clean_mi_per_kwh) }}</div><div class="l">mi/kWh (events removed)</div></div>
       <div class="stat"><div class="v">{{ '%.1f' % trip.miles }}</div><div class="l">miles</div></div>
       <div class="stat"><div class="v">{{ '%.2f' % trip.drive_kwh }}</div><div class="l">driving kWh</div></div>
-      <div class="stat"><div class="v heat">{{ '%.2f' % trip.accessory_kwh if trip.accessory_kwh is not none else 'n/a' }}</div><div class="l">heat + accessories kWh</div></div>
       <div class="stat"><div class="v">{{ '%.0f' % trip.minutes }}</div><div class="l">minutes</div></div>
       <div class="stat"><div class="v">{{ '%.0f' % trip.avg_mph }}</div><div class="l">avg mph moving</div></div>
-      <div class="stat"><div class="v warn">{{ '%.2f' % trip.excess_kwh }}</div><div class="l">kWh over eco bands</div></div>
-      <div class="stat"><div class="v">{{ '%.1f' % trip.eco_score if trip.eco_score is not none else '-' }}</div><div class="l">eco score</div></div>
+      <div class="stat"><div class="v">{{ num(trip.eco_score, '%.1f') }}</div><div class="l">eco score</div></div>
+      {% if trip.measured_kwh is not none %}
+      <div class="stat"><div class="v dim">{{ '%.2f' % trip.measured_kwh }}</div><div class="l">car's battery total kWh</div></div>
+      {% endif %}
     </div>
+  </div>
+
+  <div class="card">
+    <h2>Energy balance</h2>
+    <div class="stats">
+      <div class="stat"><div class="v good">+{{ '%.2f' % trip.won_back_kwh }}</div><div class="l">won back (regen)</div></div>
+      <div class="stat"><div class="v bad">-{{ '%.2f' % trip.lost_kwh }}</div><div class="l">lost (above ceilings)</div></div>
+      <div class="stat"><div class="v {{ 'good' if trip.net_kwh >= 0 else 'bad' }}">{{ '%+.2f' % trip.net_kwh }}</div><div class="l">net kWh</div></div>
+      <div class="stat"><div class="v warn">{{ '%.1f' % trip.over_target_min }}</div><div class="l">min over ceiling</div></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Events ({{ trip.event_count }})</h2>
+    {% if trip.events %}
+    <div class="scroll"><table>
+      <tr><th>When</th><th>Type</th><th>sec</th><th>mph</th><th>kWh</th><th>over ceiling</th><th>peak kW</th></tr>
+      {% for e in trip.events %}
+      <tr>
+        <td>{{ '%d:%02d' % ((e.t // 60)|int, (e.t % 60)|int) }}</td>
+        <td>{{ e.type }}</td>
+        <td>{{ '%.0f' % e.s }}</td>
+        <td>{{ '%.0f' % e.v0 }}&rarr;{{ '%.0f' % e.v1 }}</td>
+        <td>{{ '%.3f' % e.kwh }}</td>
+        <td class="bad">{{ '%.3f' % e.over_kwh }}</td>
+        <td>{{ '%.0f' % e.peak_kw }}</td>
+      </tr>
+      {% endfor %}
+    </table></div>
+    <div class="note">"When" is minutes into the drive. Rankings always use the total, events included.</div>
+    {% else %}<div class="dim">No hard acceleration, passing or hard slowing on this drive.</div>{% endif %}
   </div>
 {% else %}
   <div class="card">
     <h2>Lifetime (logged trips)</h2>
     <div class="stats">
-      <div class="stat"><div class="v good">{{ '%.2f' % totals.mi_per_kwh if totals.mi_per_kwh else '-' }}</div><div class="l">mi/kWh (driving)</div></div>
+      <div class="stat"><div class="v good">{{ num(totals.mi_per_kwh) }}</div><div class="l">mi/kWh (total)</div></div>
       <div class="stat"><div class="v">{{ totals.trips }}</div><div class="l">trips</div></div>
       <div class="stat"><div class="v">{{ '%.0f' % totals.miles }}</div><div class="l">miles</div></div>
       <div class="stat"><div class="v">{{ '%.1f' % totals.drive_kwh }}</div><div class="l">driving kWh</div></div>
-      <div class="stat"><div class="v heat">{{ '%.1f' % totals.accessory_kwh if totals.accessory_kwh is not none else 'n/a' }}</div><div class="l">heat + accessories kWh</div></div>
+      <div class="stat"><div class="v good">+{{ '%.1f' % totals.won_back_kwh }}</div><div class="l">won back (regen)</div></div>
+      <div class="stat"><div class="v bad">-{{ '%.1f' % totals.lost_kwh }}</div><div class="l">lost (above ceilings)</div></div>
     </div>
   </div>
 
@@ -72,17 +108,17 @@
       <button type="submit">Save</button>
     </form>
     <div class="scroll"><table>
-      <tr><th>#</th><th>Date</th><th>mi/kWh</th><th>score</th><th>miles</th><th>min</th><th>heat kWh</th><th>over eco</th></tr>
+      <tr><th>#</th><th>Date</th><th>mi/kWh</th><th>clean</th><th>score</th><th>net kWh</th><th>events</th><th>miles</th></tr>
       {% for r in b.runs %}
       <tr class="{{ 'rank1' if loop.first }}">
         <td>{{ loop.index }}</td>
         <td><a class="row" href="/smart_eco/trip/{{ r.start|int }}"><span class="ts short" data-t="{{ r.start }}"></span></a></td>
         <td class="good">{{ '%.2f' % r.drive_mi_per_kwh }}</td>
-        <td>{{ '%.1f' % r.eco_score if r.eco_score is not none else '-' }}</td>
+        <td class="dim">{{ num(r.clean_mi_per_kwh) }}</td>
+        <td>{{ num(r.eco_score, '%.1f') }}</td>
+        <td class="{{ 'good' if r.net_kwh >= 0 else 'bad' }}">{{ '%+.2f' % r.net_kwh }}</td>
+        <td>{{ r.event_count }}</td>
         <td>{{ '%.1f' % r.miles }}</td>
-        <td>{{ '%.0f' % r.minutes }}</td>
-        <td class="heat">{{ '%.2f' % r.accessory_kwh if r.accessory_kwh is not none else '-' }}</td>
-        <td class="warn">{{ '%.2f' % r.excess_kwh }}</td>
       </tr>
       {% endfor %}
     </table></div>
@@ -96,16 +132,16 @@
   <div class="card">
     <h2>Summer vs winter</h2>
     <div class="scroll"><table>
-      <tr><th>Route</th><th>Season</th><th>runs</th><th>avg mi/kWh</th><th>best</th><th>avg heat</th></tr>
+      <tr><th>Route</th><th>Season</th><th>runs</th><th>avg mi/kWh</th><th>best</th></tr>
       {% for s in seasons %}
       <tr>
         <td>{{ s.route }}</td><td>{{ s.season }}</td><td>{{ s.runs }}</td>
-        <td class="good">{{ '%.2f' % s.avg_mi_per_kwh if s.avg_mi_per_kwh else '-' }}</td>
+        <td class="good">{{ num(s.avg_mi_per_kwh) }}</td>
         <td>{{ '%.2f' % s.best_mi_per_kwh }}</td>
-        <td class="heat">{{ '%.2f' % s.avg_heat_kwh if s.avg_heat_kwh is not none else '-' }}</td>
       </tr>
       {% endfor %}
     </table></div>
+    <div class="note">Winter = November through March.</div>
   </div>
   {% endif %}
 
@@ -113,15 +149,15 @@
   <div class="card">
     <h2>Multi-stop journeys</h2>
     <div class="scroll"><table>
-      <tr><th>Date</th><th>stops</th><th>miles</th><th>mi/kWh</th><th>kWh</th><th>heat</th></tr>
+      <tr><th>Date</th><th>stops</th><th>miles</th><th>mi/kWh</th><th>kWh</th><th>net</th></tr>
       {% for j in journeys %}
       <tr>
         <td><span class="ts short" data-t="{{ j.start }}"></span></td>
         <td>{{ j.legs }}</td>
         <td>{{ '%.1f' % j.miles }}</td>
-        <td class="good">{{ '%.2f' % j.drive_mi_per_kwh if j.drive_mi_per_kwh else '-' }}</td>
+        <td class="good">{{ num(j.drive_mi_per_kwh) }}</td>
         <td>{{ '%.2f' % j.drive_kwh }}</td>
-        <td class="heat">{{ '%.2f' % j.accessory_kwh if j.accessory_kwh is not none else '-' }}</td>
+        <td class="{{ 'good' if j.won_back_kwh - j.lost_kwh >= 0 else 'bad' }}">{{ '%+.2f' % (j.won_back_kwh - j.lost_kwh) }}</td>
       </tr>
       <tr><td colspan="6" class="dim" style="text-align:left;white-space:normal;font-size:12px">
         {% for n in j.leg_names %}{{ n }}{% if not loop.last %} &rarr; {% endif %}{% endfor %}
@@ -133,29 +169,38 @@
   {% endif %}
 
   <div class="card">
-    <h2>12V battery</h2>
-    {% if v12.latest is not none %}
+    <h2>12V battery health</h2>
+    {% if v12.latest %}
     <div class="stats">
-      <div class="stat"><div class="v {{ 'heat' if v12.latest < v12.warn else 'good' }}">{{ '%.2f' % v12.latest }} V</div><div class="l">latest resting (parked)</div></div>
+      <div class="stat"><div class="v {{ 'bad' if v12.latest[1] < v12.warn else 'good' }}">{{ '%.2f' % v12.latest[1] }} V</div><div class="l">latest rested reading</div></div>
+      <div class="stat"><div class="v dim">{{ '%.1f' % (v12.latest[2] / 60) }} h</div><div class="l">rest before it</div></div>
       <div class="stat"><div class="v dim">{{ '%.1f' % v12.warn }} V</div><div class="l">warning below</div></div>
     </div>
     {% if v12.chart %}
     <svg viewBox="0 0 600 160" preserveAspectRatio="none" style="width:100%;height:140px;margin-top:10px;background:var(--bg);border-radius:8px">
       <line x1="0" x2="600" y1="{{ v12.chart.warn_y }}" y2="{{ v12.chart.warn_y }}" stroke="#f87171" stroke-dasharray="6 6" stroke-width="1"/>
       <polyline fill="none" stroke="#60a5fa" stroke-width="2" points="{{ v12.chart.points }}"/>
+      {% for x, y in v12.chart.dots %}<circle cx="{{ x }}" cy="{{ y }}" r="3" fill="#60a5fa"/>{% endfor %}
     </svg>
-    <div class="note">Last 3 days. High plateaus (~14 V) are drives; the dashed line is your warning level.</div>
+    <div class="note">One dot per parking session (rested readings only). Dashed line = your warning level.</div>
     {% endif %}
-    {% if v12.pre_drive %}
+    {% endif %}
+    {% if v12.readings %}
     <div class="scroll"><table style="margin-top:10px">
-      <tr><th>Before drive</th><th>resting V</th></tr>
-      {% for t, v in v12.pre_drive %}
-      <tr><td><span class="ts short" data-t="{{ t }}"></span></td><td class="{{ 'heat' if v < v12.warn else '' }}">{{ '%.2f' % v }}</td></tr>
+      <tr><th>Reading taken</th><th>volts</th><th>rested</th><th></th></tr>
+      {% for r in v12.readings %}
+      <tr>
+        <td><span class="ts short" data-t="{{ r[0] }}"></span></td>
+        <td class="{{ 'bad' if (not r[3] and r[1] < v12.warn) else '' }}">{{ '%.2f' % r[1] }}</td>
+        <td>{{ ('%.1f h' % (r[2] / 60)) if r[2] >= 0 else '?' }}</td>
+        <td class="dim">{{ 'short rest' if r[3] else '' }}</td>
+      </tr>
       {% endfor %}
     </table></div>
-    {% endif %}
+    <div class="note">Taken right before the comma shuts itself off (your Device Shutdown Timer sets the rest time).
+      Readings while charging are skipped; under 30 min of rest is marked "short rest" and not used for the warning.</div>
     {% else %}
-    <div class="dim">No resting readings yet. They start 30 minutes after you park, while the comma is still on.</div>
+    <div class="dim">No readings yet. The first one is recorded at the start of the drive after your next park.</div>
     {% endif %}
   </div>
 
@@ -163,15 +208,16 @@
     <h2>Recent trips</h2>
     {% if recent %}
     <div class="scroll"><table>
-      <tr><th>Date</th><th>Route</th><th>miles</th><th>mi/kWh</th><th>kWh</th><th>heat</th></tr>
+      <tr><th>Date</th><th>Route</th><th>miles</th><th>mi/kWh</th><th>clean</th><th>net</th><th>events</th></tr>
       {% for r in recent %}
       <tr>
         <td><a class="row" href="/smart_eco/trip/{{ r.start|int }}"><span class="ts short" data-t="{{ r.start }}"></span></a></td>
         <td class="dim">{{ route_names.get(r.route_id, '-') }}</td>
         <td>{{ '%.1f' % r.miles }}</td>
-        <td class="good">{{ '%.2f' % r.drive_mi_per_kwh if r.drive_mi_per_kwh else '-' }}</td>
-        <td>{{ '%.2f' % r.drive_kwh }}</td>
-        <td class="heat">{{ '%.2f' % r.accessory_kwh if r.accessory_kwh is not none else '-' }}</td>
+        <td class="good">{{ num(r.drive_mi_per_kwh) }}</td>
+        <td class="dim">{{ num(r.clean_mi_per_kwh) }}</td>
+        <td class="{{ 'good' if r.net_kwh >= 0 else 'bad' }}">{{ '%+.2f' % r.net_kwh }}</td>
+        <td>{{ r.event_count }}</td>
       </tr>
       {% endfor %}
     </table></div>
@@ -183,19 +229,25 @@
     <h2>Speed vs power {% if not trip %}(all trips){% endif %}</h2>
     {% if speed_rows %}
     <div class="scroll"><table>
-      <tr><th>mph</th><th>time</th><th>avg kW</th><th>steady kW</th><th>steady kW (car)</th><th></th></tr>
+      <tr><th>mph</th><th>time</th><th>avg kW</th><th>steady kW</th><th>steady min&ndash;max</th><th>accel kW</th><th>slowing kW</th><th>regen kWh</th><th>peak kW</th><th>lowest kW</th><th></th></tr>
       {% for s in speed_rows %}
       <tr>
         <td>{{ s.range }}</td>
         <td>{{ '%.0f' % s.minutes }} min</td>
         <td>{{ '%.1f' % s.avg_kw }}</td>
-        <td class="good">{{ '%.1f' % s.steady_kw if s.steady_kw is not none else '-' }}</td>
-        <td>{{ '%.1f' % s.steady_measured_kw if s.steady_measured_kw is not none else '-' }}</td>
-        <td style="width:30%"><span class="bar" style="width:{{ [[(s.steady_kw or 0) / max_kw * 100, 0]|max, 100]|min }}%"></span></td>
+        <td class="good">{{ num(s.steady_kw, '%.1f') }}</td>
+        <td>{% if s.steady_min_kw is not none %}{{ '%.1f' % s.steady_min_kw }} to {{ '%.1f' % s.steady_max_kw }}{% else %}-{% endif %}</td>
+        <td>{{ num(s.accel_kw, '%.1f') }}</td>
+        <td>{{ num(s.slow_kw, '%.1f') }}</td>
+        <td class="good">{{ '%.2f' % s.regen_kwh }}</td>
+        <td>{{ num(s.max_kw, '%.0f') }}</td>
+        <td>{{ num(s.min_kw, '%.0f') }}</td>
+        <td style="min-width:80px"><span class="bar" style="width:{{ [[(s.steady_kw or 0) / max_kw * 100, 0]|max, 100]|min }}%"></span></td>
       </tr>
       {% endfor %}
     </table></div>
-    <div class="note">Steady = cruising without speeding up or slowing down. "kW" is driving power from the model; "(car)" is the battery's own reading, which includes heat. It shows only if your Bolt broadcasts it.</div>
+    <div class="note">Steady = cruising without speeding up or slowing down (kept separate so merges and passes don't skew it).
+      All kW here are driving power from the model; negative = regen.</div>
     {% else %}<div class="dim">No data yet.</div>{% endif %}
   </div>
 

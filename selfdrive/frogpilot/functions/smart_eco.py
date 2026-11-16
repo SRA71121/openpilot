@@ -322,14 +322,14 @@ class SmartEcoMonitor:
       o.measured_kw = self.measured.kw()
     o.power_kw = o.measured_kw if o.measured_kw is not None else o.estimated_kw
 
-    # Comparison + recommendation (no actuation)
-    o.over_target = o.power_kw > o.target_kw + self.cfg.over_target_margin_kw
+    # Comparison + recommendation (no actuation). Uses driving power only, never heater/accessory load.
+    o.over_target = o.drive_kw > o.target_kw + self.cfg.over_target_margin_kw
     o.driver_override = inp.gas_pressed and o.over_target
     o.recommended_max_accel = self.model.accel_for_power(o.target_kw, inp.v_ego, pitch)
 
     # Trip accumulators
-    o.trip_energy_kwh += o.power_kw * dt / 3600.0
-    o.trip_excess_kwh += max(o.power_kw - o.target_kw, 0.0) * dt / 3600.0
+    o.trip_energy_kwh += o.drive_kw * dt / 3600.0
+    o.trip_excess_kwh += max(o.drive_kw - o.target_kw, 0.0) * dt / 3600.0
     o.trip_distance_km += max(inp.v_ego, 0.0) * dt / 1000.0
     if o.over_target:
       o.trip_over_target_s += dt

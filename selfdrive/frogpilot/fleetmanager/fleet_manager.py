@@ -346,10 +346,10 @@ def _eco_context():
   routes = eco_trips.load_routes()
   miles = sum(t["miles"] for t in trips)
   drive = sum(t["drive_kwh"] for t in trips)
-  acc = [t["accessory_kwh"] for t in trips if t["accessory_kwh"] is not None]
   totals = {"trips": len(trips), "miles": miles, "drive_kwh": drive,
             "mi_per_kwh": miles / drive if drive > 0.01 else None,
-            "accessory_kwh": sum(acc) if acc else None}
+            "won_back_kwh": sum(t["won_back_kwh"] for t in trips),
+            "lost_kwh": sum(t["lost_kwh"] for t in trips)}
   return trips, routes, totals
 
 
@@ -372,18 +372,18 @@ def smart_eco_page():
 
 def _v12_context():
   log12 = Battery12VLog.load()
-  now = time.time()
-  pts = [s for s in log12.samples if s[0] >= now - 3 * 86400]
+  warn = fleet.params.get_float("SmartEco12VWarn") or 12.2
+  trusted = log12.trusted()[-60:]
   chart = None
-  if len(pts) >= 2:
-    vmin, vmax = 11.5, 14.8
-    t0, t1 = pts[0][0], max(pts[-1][0], pts[0][0] + 1)
-    def xy(s):
-      return (round(600 * (s[0] - t0) / (t1 - t0), 1), round(160 * (1 - (min(max(s[1], vmin), vmax) - vmin) / (vmax - vmin)), 1))
-    chart = {"points": " ".join(f"{x},{y}" for x, y in map(xy, pts)),
-             "warn_y": round(160 * (1 - ((fleet.params.get_float("SmartEco12VWarn") or 12.2) - vmin) / (vmax - vmin)), 1)}
-  return {"latest": log12.latest_resting(), "pre_drive": list(reversed(log12.pre_drive()))[:10],
-          "warn": fleet.params.get_float("SmartEco12VWarn") or 12.2, "chart": chart}
+  if len(trusted) >= 2:
+    vmin, vmax = 11.6, 13.6
+    t0, t1 = trusted[0][0], max(trusted[-1][0], trusted[0][0] + 1)
+    def xy(r):
+      return (round(590 * (r[0] - t0) / (t1 - t0) + 5, 1), round(150 * (1 - (min(max(r[1], vmin), vmax) - vmin) / (vmax - vmin)) + 5, 1))
+    pts = [xy(r) for r in trusted]
+    chart = {"points": " ".join(f"{x},{y}" for x, y in pts), "dots": pts,
+             "warn_y": round(150 * (1 - (min(max(warn, vmin), vmax) - vmin) / (vmax - vmin)) + 5, 1)}
+  return {"latest": log12.latest(), "readings": list(reversed(log12.readings))[:30], "warn": warn, "chart": chart}
 
 
 @app.route("/smart_eco/trip/<int:start>", methods=["GET"])

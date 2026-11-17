@@ -463,13 +463,6 @@ def backup_openpilot():
   backup_dir_path = '/data/backups'
   Path(backup_dir_path).mkdir(parents=True, exist_ok=True)
 
-  # Sort backups by creation time and only keep the 5 newest auto generated ones
-  auto_backups = sorted([f for f in os.listdir(backup_dir_path) if f.endswith("_auto")],
-                        key=lambda x: os.path.getmtime(os.path.join(backup_dir_path, x)))
-  for old_backup in auto_backups:
-    subprocess.run(['sudo', 'rm', '-rf', os.path.join(backup_dir_path, old_backup)], check=True)
-    print(f"Deleted oldest backup to maintain limit: {old_backup}")
-
   # Generate the backup folder name from the current git commit and branch name
   branch = get_short_branch()
   commit = get_commit_date()[12:-16]
@@ -481,6 +474,14 @@ def backup_openpilot():
   if os.path.exists(backup_path):
     print(f"Backup folder {backup_folder_name} already exists. Skipping backup.")
     return
+
+  # Sort backups by creation time and only keep the 5 newest auto generated ones
+  # (delete all but the newest 4 to make room for the one about to be created)
+  auto_backups = sorted([f for f in os.listdir(backup_dir_path) if f.endswith("_auto")],
+                        key=lambda x: os.path.getmtime(os.path.join(backup_dir_path, x)))
+  for old_backup in auto_backups[:-4]:
+    subprocess.run(['sudo', 'rm', '-rf', os.path.join(backup_dir_path, old_backup)], check=True)
+    print(f"Deleted oldest backup to maintain limit: {old_backup}")
 
   # Create the backup directory and copy openpilot to it
   Path(backup_path).mkdir(parents=True, exist_ok=True)

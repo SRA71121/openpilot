@@ -322,12 +322,12 @@ def set_destination(postvars, valid_addr):
   else:
     addr = postvars.get("place_name")
     token = get_public_token()
-    data, lon, lat, valid_addr, token = search_addr(addr, lon, lat, valid_addr, token)
-    postvars["lat"] = lat
-    postvars["lon"] = lon
-    postvars["save_type"] = "recent"
-    nav_confirmed(postvars)
-    valid_addr= True
+    data, lon, lat, valid_addr, token = search_addr({"addr_val": addr or ""}, None, None, False, token)
+    if valid_addr:
+      postvars["lat"] = lat
+      postvars["lon"] = lon
+      postvars["save_type"] = "recent"
+      nav_confirmed(postvars)
   return postvars, valid_addr
 
 def nav_confirmed(postvars):

@@ -1032,9 +1032,17 @@ EVENTS: Dict[int, Dict[str, Union[Alert, AlertCallbackType]]] = {
   EventName.followingTooClose: {
     ET.PERMANENT: Alert(
       "Back off",
-      "Following too close. Chill out.",
-      AlertStatus.frogpilot, AlertSize.mid,
-      Priority.LOW, VisualAlert.none, AudibleAlert.backOff, 3.),
+      "Following too close",
+      AlertStatus.caution, AlertSize.mid,
+      Priority.LOW, VisualAlert.none, AudibleAlert.backOff, .5),
+  },
+
+  EventName.followingTooCloseRed: {
+    ET.PERMANENT: Alert(
+      "BACK OFF",
+      "Way too close. Chill out.",
+      AlertStatus.critical, AlertSize.mid,
+      Priority.MID, VisualAlert.none, AudibleAlert.backOffUrgent, .5),
   },
 
   EventName.laneChangeBlockedLoud: {

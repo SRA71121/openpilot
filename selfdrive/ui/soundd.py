@@ -51,6 +51,7 @@ sound_list: Dict[int, Tuple[str, Optional[int], float]] = {
 
   # Smart Eco fork: following-too-close chime (+ optional recorded voice line)
   AudibleAlert.backOff: ("back_off.wav", 1, MAX_VOLUME),
+  AudibleAlert.backOffUrgent: ("back_off_urgent.wav", 1, MAX_VOLUME),
 }
 
 def check_controls_timeout_alert(sm):
@@ -210,6 +211,7 @@ class Soundd:
       AudibleAlert.promptRepeat: self.params.get_int("PromptVolume"),
       AudibleAlert.promptDistracted: self.params.get_int("PromptDistractedVolume"),
       AudibleAlert.backOff: self.params.get_int("PromptVolume"),
+      AudibleAlert.backOffUrgent: self.params.get_int("WarningSoftVolume"),
 
       AudibleAlert.warningSoft: self.params.get_int("WarningSoftVolume"),
       AudibleAlert.warningImmediate: self.params.get_int("WarningImmediateVolume")

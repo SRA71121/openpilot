@@ -219,6 +219,7 @@ std::unordered_map<std::string, uint32_t> keys = {
     {"CarCodesSummary", PERSISTENT},
     {"FollowWarning", PERSISTENT},
     {"FollowWarningGap", PERSISTENT},
+    {"FollowWarningRedGap", PERSISTENT},
     {"FollowWarningSpeed", PERSISTENT},
     {"SmartEco12VWarn", PERSISTENT},
     {"SmartEcoGlide", PERSISTENT},

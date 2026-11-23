@@ -66,8 +66,9 @@ FrogPilotControlsPanel::FrogPilotControlsPanel(SettingsWindow *parent) : FrogPil
     {"SetSpeedOffset", "Set Speed Offset", "Set an offset for your desired set speed.", ""},
 
     {"SmartEcoCruise", "Smart Eco Cruise", "Energy logging, trip scores and leaderboards, plus optional power-saving speed control when openpilot controls your speed.", "../frogpilot/assets/toggle_icons/icon_custom.png"},
-    {"FollowWarning", "Following Too Close Warning", "Chime (and your recorded voice line, if added) plus a 'Back off' banner when the gap to the car ahead stays under your chosen time for 2 seconds. Alert only: it never steers, brakes or slows the car. Quiet while your turn signal is on, and at most once every 30 seconds.", ""},
-    {"FollowWarningGap", "Warn Below Gap", "Time gap to the car ahead that counts as too close. 1.0 s at 60 mph is about 88 ft.", ""},
+    {"FollowWarning", "Following Too Close Reminder", "Two steps, whether openpilot is engaged, on Always On Lateral, or off. Yellow: the gap stays under your setting for 2 seconds. Red: the gap drops under the red setting, or you're closing fast enough to hit in under 2.5 seconds. Accelerating hard toward the car ahead skips the wait. Alert only: it never steers, brakes or slows the car. Quiet with your turn signal on.", ""},
+    {"FollowWarningGap", "Yellow Below Gap", "Time gap to the car ahead that turns the reminder yellow. 1.0 s at 60 mph is about 88 ft.", ""},
+    {"FollowWarningRedGap", "Red Below Gap", "Time gap that turns it red. 0.6 s at 60 mph is about 53 ft.", ""},
     {"FollowWarningSpeed", "Warn Above Speed", "Only warn above this speed, so stop-and-go traffic doesn't set it off.", ""},
     {"SmartEcoScoreUI", "Show Eco Score and Range", "Show a live 0-10 efficiency score and 'range at this pace' on the driving screen.", ""},
     {"SmartEcoLimiter", "Power Ceiling", "When openpilot controls your speed, limit acceleration to each speed band's kW ceiling below. The gas pedal always overrides it and braking is never limited.", ""},
@@ -475,7 +476,7 @@ FrogPilotControlsPanel::FrogPilotControlsPanel(SettingsWindow *parent) : FrogPil
         }
       });
       toggle = smartEcoToggle;
-    } else if (param == "FollowWarningGap") {
+    } else if (param == "FollowWarningGap" || param == "FollowWarningRedGap") {
       toggle = new FrogPilotParamValueControl(param, title, desc, icon, 0.5, 2.0, std::map<int, QString>(), this, false, " s", 1, 0.1);
     } else if (param == "FollowWarningSpeed") {
       toggle = new FrogPilotParamValueControl(param, title, desc, icon, 0, 60, std::map<int, QString>(), this, false, " mph");

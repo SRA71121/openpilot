@@ -95,6 +95,7 @@ def manager_init() -> None:
     ("CameraAutoExposure", "0"),
     ("FollowWarning", "1"),
     ("FollowWarningGap", "1.0"),
+    ("FollowWarningRedGap", "0.6"),
     ("FollowWarningSpeed", "25"),
     ("SmartEco12VWarn", "12.2"),
     ("SmartEcoGlide", "0"),

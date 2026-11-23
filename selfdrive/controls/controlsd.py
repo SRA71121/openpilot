@@ -652,12 +652,15 @@ class Controls:
       if green_light:
         self.events.add(EventName.greenLight)
 
-    # Smart Eco fork: following-too-close warning (alert only, works engaged or not)
+    # Smart Eco fork: two-step following-too-close reminder (alert only; engaged, Always On Lateral or off)
     if self.follow_warning_enabled:
       lead = self.sm['radarState'].leadOne
-      if self.follow_warning.update(DT_CTRL, self.driving_gear, CS.vEgo, lead.status, lead.dRel,
-                                    self.follow_warning_gap, self.follow_warning_speed,
-                                    CS.leftBlinker or CS.rightBlinker, CS.standstill):
+      follow_level = self.follow_warning.update(DT_CTRL, self.driving_gear, CS.vEgo, CS.aEgo, lead.status, lead.dRel, lead.vLead,
+                                                self.follow_warning_gap, self.follow_warning_red_gap, self.follow_warning_speed,
+                                                CS.leftBlinker or CS.rightBlinker, CS.standstill)
+      if follow_level == 2:
+        self.events.add(EventName.followingTooCloseRed)
+      elif follow_level == 1:
         self.events.add(EventName.followingTooClose)
 
     # Lead departing alert
@@ -1237,6 +1240,7 @@ class Controls:
 
     self.follow_warning_enabled = self.params.get_bool("FollowWarning")
     self.follow_warning_gap = self.params.get_float("FollowWarningGap") or 1.0
+    self.follow_warning_red_gap = self.params.get_float("FollowWarningRedGap") or 0.6
     self.follow_warning_speed = (self.params.get_float("FollowWarningSpeed") or 0.0) * CV.MPH_TO_MS
 
     custom_theme = self.params.get_bool("CustomTheme")

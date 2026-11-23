@@ -738,6 +738,7 @@ struct ControlsState @0x97ff69c53601abf1 {
     userPrompt @1;   # mid priority alert that might require user intervention
     critical @2;     # high priority alert that needs immediate user intervention
     frogpilot @3;    # green startup alert
+    caution @4;      # Smart Eco fork: yellow reminder (following too close)
   }
 
   enum AlertSize {

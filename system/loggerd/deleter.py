@@ -16,7 +16,7 @@ DELETE_LAST = ['boot', 'crash']
 
 PRESERVE_ATTR_NAME = 'user.preserve'
 PRESERVE_ATTR_VALUE = b'1'
-PRESERVE_COUNT = 5
+PRESERVE_COUNT = 40  # Smart Eco fork: room for Tailgater Mode clips (was 5); preserved clips are still deleted last if space runs out
 
 
 def has_preserve_xattr(d: str) -> bool:

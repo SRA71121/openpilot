@@ -14,6 +14,7 @@ from openpilot.selfdrive.frogpilot.functions.conditional_experimental_mode impor
 from openpilot.selfdrive.frogpilot.functions.map_turn_speed_controller import MapTurnSpeedController
 from openpilot.selfdrive.frogpilot.functions.speed_limit_controller import SpeedLimitController
 from openpilot.selfdrive.frogpilot.functions.smart_eco import EcoLongControl, parse_config
+from openpilot.selfdrive.frogpilot.functions.tailgater import ramp_follow
 
 
 TARGET_LAT_A = 1.9  # m/s^2
@@ -43,10 +44,27 @@ class FrogPilotPlanner:
     self.eco_long = None
     self.eco_state = "off"
 
+    # Tailgater Mode: extra following time requested by smart_ecod (0 = off). Can only add distance.
+    self.tailgater_target = 0.0
+    self.tailgater_follow = 0.0
+    self.tailgater_poll = 0
+
     self.update_frogpilot_params(params)
 
   def update(self, carState, controlsState, modelData, mpc, sm, v_cruise, v_ego):
     enabled = controlsState.enabled
+
+    # Tailgater Mode: poll the requested gap twice a second, ease toward it at 0.1 s per second
+    self.tailgater_poll += 1
+    if self.tailgater_poll >= 10:
+      self.tailgater_poll = 0
+      try:
+        self.tailgater_target = float(self.params_memory.get("TailgaterFollowS", encoding="utf8") or 0.0)
+      except Exception:
+        self.tailgater_target = 0.0
+    base_follow = float(getattr(mpc, "t_follow", 1.45))
+    self.tailgater_follow = ramp_follow(self.tailgater_follow, base_follow, self.tailgater_target, 0.05) \
+                            if (self.tailgater_target > 0 or self.tailgater_follow > base_follow) else 0.0
 
     # Use the stock deceleration profile to handle MTSC/VTSC more precisely
     v_cruise_changed = (self.mtsc_target or self.vtsc_target) < v_cruise
@@ -100,7 +118,7 @@ class FrogPilotPlanner:
     # Smart Eco (opt-in): power ceiling + highway glide. Only when openpilot controls speed in
     # normal (non-experimental) mode. Only lowers max acceleration; braking is never limited.
     self.eco_state = "off"
-    if self.eco_long is not None and enabled and self.CP.openpilotLongitudinalControl and mpc.mode == 'acc':
+    if self.eco_long is not None and enabled and self.CP.openpilotLongitudinalControl and mpc.mode == 'acc' and self.tailgater_target <= 0:
       pitch = 0.0
       try:
         llk = sm['liveLocationKalman']

@@ -359,6 +359,8 @@ class LongitudinalMpc:
   def update(self, radarstate, v_cruise, x, v, a, j, frogpilot_planner, personality=log.LongitudinalPersonality.standard):
     t_follow = get_T_FOLLOW(frogpilot_planner.custom_personalities, frogpilot_planner.aggressive_follow, frogpilot_planner.standard_follow, frogpilot_planner.relaxed_follow, personality)
     self.t_follow = t_follow
+    # Smart Eco fork, Tailgater Mode: may only lengthen the following time (more room ahead)
+    t_follow = max(t_follow, getattr(frogpilot_planner, "tailgater_follow", 0.0))
     v_ego = self.x0[1]
     self.status = radarstate.leadOne.status or radarstate.leadTwo.status
 

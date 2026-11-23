@@ -140,7 +140,14 @@ void OnroadWindow::mousePressEvent(QMouseEvent* e) {
   QRect speedLimitRect(7, 250, 225, 225);
   bool isSpeedLimitClicked = speedLimitRect.contains(e->pos());
 
-  if (isMaxSpeedClicked || isSpeedClicked || isSpeedLimitClicked) {
+  // Smart Eco fork: Tailgater Mode button (drawn by nvg, so map its rect into this widget)
+  QRect tailgaterRect = nvg->tailgaterRect.isEmpty() ? QRect() : nvg->tailgaterRect.translated(nvg->mapTo(this, QPoint(0, 0)));
+  bool isTailgaterClicked = !tailgaterRect.isEmpty() && tailgaterRect.contains(e->pos());
+
+  if (isTailgaterClicked) {
+    paramsMemory.putBool("TailgaterMode", !paramsMemory.getBool("TailgaterMode"));
+    widgetClicked = true;
+  } else if (isMaxSpeedClicked || isSpeedClicked || isSpeedLimitClicked) {
     if (isMaxSpeedClicked && scene.reverse_cruise_ui) {
       bool currentReverseCruise = scene.reverse_cruise;
 
@@ -1460,6 +1467,12 @@ void AnnotatedCameraWidget::updateFrogPilotWidgets(QPainter &p) {
       drawEcoScore(p);
     }
 
+    if (scene.eco_alive) {
+      drawTailgaterButton(p);
+    } else {
+      tailgaterRect = QRect();
+    }
+
     if (customSignals && (turnSignalLeft || turnSignalRight)) {
       if (!animationTimer->isActive()) {
         animationTimer->start(totalFrames * 11);  // 440 milliseconds per loop; syncs up perfectly with my 2019 Lexus ES 350 turn signal clicks
@@ -1699,6 +1712,38 @@ void AnnotatedCameraWidget::drawEcoScore(QPainter &p) {
   p.drawText(QRect(x + 22, y + 84, w - 44, 32), Qt::AlignLeft | Qt::AlignVCenter, trip);
   QString pace = s.eco_pace_range > 0 ? QString("%1 mi pace").arg(std::min(s.eco_pace_range, 999.0f), 0, 'f', 0) : QString("-- mi pace");
   p.drawText(QRect(x + 22, y + 116, w - 44, 32), Qt::AlignLeft | Qt::AlignVCenter, pace);
+
+  p.restore();
+}
+
+void AnnotatedCameraWidget::drawTailgaterButton(QPainter &p) {
+  const UIScene &s = uiState()->scene;
+  p.save();
+
+  const int w = 250, h = 100;
+  const int x = rightHandDrive ? width() - UI_BORDER_SIZE - 30 - w : UI_BORDER_SIZE + 30;
+  const int y = height() / 2 + 79 + 20;  // just under the eco score panel
+  tailgaterRect = QRect(x, y, w, h);
+
+  p.setPen(Qt::NoPen);
+  p.setBrush(s.tailgater_active ? QColor(0x00, 0x47, 0xAB, 0xe6) : QColor(0, 0, 0, 140));
+  p.drawRoundedRect(tailgaterRect, 24, 24);
+
+  p.setPen(s.tailgater_active ? QColor(0xFF, 0xFF, 0xFF) : QColor(0xE6, 0xE6, 0xE6));
+  p.setFont(InterFont(30, QFont::Bold));
+  p.drawText(QRect(x + 20, y + 10, w - 40, 40), Qt::AlignLeft | Qt::AlignVCenter, "TAILGATER");
+
+  p.setFont(InterFont(26));
+  QString sub;
+  if (s.tailgater_active) {
+    const int left = std::max(0, (int)s.tailgater_seconds_left);
+    sub = QString("%1:%2 left  %3s gap").arg(left / 60).arg(left % 60, 2, 10, QChar('0')).arg(s.tailgater_follow, 0, 'f', 1);
+    p.setPen(QColor(0xD8, 0xE4, 0xFF));
+  } else {
+    sub = "tap to start";
+    p.setPen(QColor(0x9A, 0xA5, 0xB1));
+  }
+  p.drawText(QRect(x + 20, y + 52, w - 40, 36), Qt::AlignLeft | Qt::AlignVCenter, sub);
 
   p.restore();
 }

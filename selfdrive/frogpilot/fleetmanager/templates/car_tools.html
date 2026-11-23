@@ -84,6 +84,30 @@
 {% endif %}
 
 <div class="card">
+  <h2>Tailgater Mode incidents</h2>
+  {% if not record_driver %}
+    <p class="warn">Driver camera recording is off, so only front video is saved. Turn on Settings &rarr; Toggles &rarr; Record and Upload Driver Camera.</p>
+  {% endif %}
+  {% if incidents %}
+  <div class="scroll"><table>
+    <tr><th>When</th><th>Length</th><th>Closest gap</th><th>Top speed</th><th>Video (one link per minute)</th></tr>
+    {% for i in incidents %}
+    <tr>
+      <td><span class="ts" data-t="{{ i.start }}"></span>{% if i.night %} <span class="dim">night</span>{% endif %}<br><span class="dim">{{ i.end_reason }}</span></td>
+      <td>{{ (i.seconds // 60) }}:{{ '%02d' % (i.seconds % 60) }}</td>
+      <td>{{ ('%.1f s' % i.min_gap_s) if i.min_gap_s is not none else '-' }}</td>
+      <td>{{ '%.0f' % i.max_mph }} mph</td>
+      <td>{% for l in i.links %}<a class="dim" href="/footage/{{ l.route }}?{{ l.seg }},fcamera">front {{ loop.index }}</a> &middot; <a class="dim" href="/footage/{{ l.route }}?{{ l.seg }},dcamera">driver {{ loop.index }}</a>{% if not loop.last %}<br>{% endif %}{% endfor %}</td>
+    </tr>
+    {% endfor %}
+  </table></div>
+  <p class="note">Video is locked from the minute before you tapped until a minute after it ended. Locked clips are deleted last if storage runs out (newest 40 locked minutes are protected).</p>
+  {% else %}
+  <p class="dim">None yet. Tap TAILGATER on the driving screen when someone is riding your bumper.</p>
+  {% endif %}
+</div>
+
+<div class="card">
   <h2>Camera</h2>
   <p>Road camera sensor: <b>{{ sensor }}</b></p>
   {% if sensor == 'OS04C10' %}

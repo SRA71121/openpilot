@@ -265,6 +265,9 @@ static void update_state(UIState *s) {
     scene.eco_score = eco.getEcoScore();
     scene.eco_trip_score = eco.getEcoTripScore();
     scene.eco_pace_range = eco.getPaceRangeMi();
+    scene.tailgater_active = eco.getTailgaterActive();
+    scene.tailgater_seconds_left = eco.getTailgaterSecondsLeft();
+    scene.tailgater_follow = eco.getTailgaterFollowS();
   }
   scene.eco_alive = sm.alive("smartEcoState");
   if (sm.updated("frogpilotPlan")) {

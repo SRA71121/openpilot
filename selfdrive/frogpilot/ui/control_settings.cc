@@ -70,6 +70,8 @@ FrogPilotControlsPanel::FrogPilotControlsPanel(SettingsWindow *parent) : FrogPil
     {"FollowWarningGap", "Yellow Below Gap", "Time gap to the car ahead that turns the reminder yellow. 1.0 s at 60 mph is about 88 ft.", ""},
     {"FollowWarningRedGap", "Red Below Gap", "Time gap that turns it red. 0.6 s at 60 mph is about 53 ft.", ""},
     {"FollowWarningSpeed", "Warn Above Speed", "Only warn above this speed, so stop-and-go traffic doesn't set it off.", ""},
+    {"TailgaterDayGap", "Tailgater Mode Gap (Day)", "Tap TAILGATER on the driving screen when someone is riding your bumper. openpilot eases into this bigger gap to the car ahead (only when it controls your speed), Power Ceiling and Glide pause, and front + driver camera video is saved from a minute before the tap to a minute after it ends. Ends on a second tap, after 10 minutes, or when openpilot disengages. Gas, brake and steering override as always.", ""},
+    {"TailgaterNightGap", "Tailgater Mode Gap (Night)", "Gap used when it's dark out.", ""},
     {"SmartEcoScoreUI", "Show Eco Score and Range", "Show a live 0-10 efficiency score and 'range at this pace' on the driving screen.", ""},
     {"SmartEcoLimiter", "Power Ceiling", "When openpilot controls your speed, limit acceleration to each speed band's kW ceiling below. The gas pedal always overrides it and braking is never limited.", ""},
     {"SmartEcoGlide", "Highway Glide", "Above 35 mph with openpilot controlling speed: coast down hills and let speed float a little above your set speed instead of regenerating, then glide back down. Turns off for close or slower lead cars and curves.", ""},
@@ -476,6 +478,8 @@ FrogPilotControlsPanel::FrogPilotControlsPanel(SettingsWindow *parent) : FrogPil
         }
       });
       toggle = smartEcoToggle;
+    } else if (param == "TailgaterDayGap" || param == "TailgaterNightGap") {
+      toggle = new FrogPilotParamValueControl(param, title, desc, icon, 1.5, 5.0, std::map<int, QString>(), this, false, " s", 1, 0.1);
     } else if (param == "FollowWarningGap" || param == "FollowWarningRedGap") {
       toggle = new FrogPilotParamValueControl(param, title, desc, icon, 0.5, 2.0, std::map<int, QString>(), this, false, " s", 1, 0.1);
     } else if (param == "FollowWarningSpeed") {

@@ -259,6 +259,9 @@ typedef struct UIScene {
   float eco_score = -1.0f;
   float eco_trip_score = -1.0f;
   float eco_pace_range = 0.0f;
+  bool tailgater_active = false;
+  float tailgater_seconds_left = 0.0f;
+  float tailgater_follow = 0.0f;
   int camera_view;
   int conditional_speed;
   int conditional_speed_lead;

@@ -414,6 +414,7 @@ def smart_eco_export():
 
 # ---- Car Tools: trouble codes and camera info --------------------------------
 from openpilot.selfdrive.frogpilot.functions import car_codes
+from openpilot.selfdrive.frogpilot.functions import tailgater as tailgater_mode
 
 
 @app.route("/car_tools", methods=["GET"])
@@ -426,7 +427,10 @@ def car_tools_page():
                          requested=p.get_bool("CarCodesRequest"),
                          summary=p.get("CarCodesSummary", encoding="utf8") or "",
                          sensor=p.get("CameraSensor", encoding="utf8") or "not seen yet",
-                         auto_exposure=p.get_bool("CameraAutoExposure"))
+                         auto_exposure=p.get_bool("CameraAutoExposure"),
+                         record_driver=p.get_bool("RecordFront"),
+                         incidents=[dict(i, links=tailgater_mode.incident_links(i.get("segments", [])))
+                                    for i in reversed(tailgater_mode.load_incidents())][:30])
 
 
 @app.route("/car_tools/request_scan", methods=["POST"])

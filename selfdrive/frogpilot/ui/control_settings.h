@@ -49,7 +49,7 @@ private:
   std::set<QString> longitudinalTuneKeys = {"AccelerationProfile", "DecelerationProfile", "AggressiveAcceleration", "SmoothBraking", "StoppingDistance"};
   std::set<QString> mtscKeys = {"DisableMTSCSmoothing", "MTSCAggressiveness", "MTSCCurvatureCheck", "MTSCLimit"};
   std::set<QString> qolKeys = {"DisableOnroadUploads", "HigherBitrate", "NavChill", "PauseLateralOnSignal", "ReverseCruise", "SetSpeedOffset"};
-  std::set<QString> smartEcoKeys = {"FollowWarning", "FollowWarningGap", "FollowWarningRedGap", "FollowWarningSpeed", "SmartEcoScoreUI", "SmartEcoLimiter", "SmartEcoGlide", "SmartEcoGlideBand", "SmartEcoSagBand", "SmartEco12VWarn"};
+  std::set<QString> smartEcoKeys = {"FollowWarning", "FollowWarningGap", "FollowWarningRedGap", "FollowWarningSpeed", "TailgaterDayGap", "TailgaterNightGap", "SmartEcoScoreUI", "SmartEcoLimiter", "SmartEcoGlide", "SmartEcoGlideBand", "SmartEcoSagBand", "SmartEco12VWarn"};
   std::vector<FrogPilotDualParamControl*> smartEcoBandRows;
   std::set<QString> speedLimitControllerKeys = {"SLCControls", "SLCQOL", "SLCVisuals"};
   std::set<QString> speedLimitControllerControlsKeys = {"Offset1", "Offset2", "Offset3", "Offset4", "SLCFallback", "SLCOverride", "SLCPriority"};

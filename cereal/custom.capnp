@@ -72,6 +72,9 @@ struct SmartEcoState @0x80ae746ee2596b11 {
   paceMiPerKwh @26 :Float32;       # last few minutes, driving energy only; 0 if unknown
   paceRangeMi @27 :Float32;        # full-pack range at that pace; 0 if unknown
   driveKw @28 :Float32;            # propulsion power (no heater)
+  tailgaterActive @29 :Bool;       # Tailgater Mode on
+  tailgaterFollowS @30 :Float32;   # following time it asks for (0 when off)
+  tailgaterSecondsLeft @31 :Float32;
 }
 
 struct CustomReserved5 @0xa5cd762cd951a455 {

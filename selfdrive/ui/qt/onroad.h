@@ -164,6 +164,8 @@ public:
   MapSettingsButton *map_settings_btn;
   MapSettingsButton *map_settings_btn_bottom;
 
+  QRect tailgaterRect;  // Smart Eco fork: Tailgater Mode button, in this widget's coordinates (empty when hidden)
+
 private:
   void drawText(QPainter &p, int x, int y, const QString &text, int alpha = 255);
 
@@ -197,6 +199,7 @@ private:
   void drawSLCConfirmation(QPainter &p);
   void drawStatusBar(QPainter &p);
   void drawEcoScore(QPainter &p);
+  void drawTailgaterButton(QPainter &p);
   void drawTurnSignals(QPainter &p);
 
   // FrogPilot variables

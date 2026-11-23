@@ -7,12 +7,15 @@ Reads:     carState, carControl, liveLocationKalman, and (optionally) raw CAN
 Publishes: smartEcoState
 Commands:  NOTHING. This process does not publish sendcan, carControl, or any
            planner message, and nothing in controls/planning subscribes to it.
+           Tailgater Mode: the only thing it hands the planner is a larger following time
+           (memory param "TailgaterFollowS"), which can only add distance to the car ahead.
 
 Measured HV power (GM 0x2C7 BECMBatteryVoltageCurrent) is read with a private
 CANParser in this process, NOT added to carstate's parser. If the message isn't
 on the bus, the car's CAN validity is unaffected; this daemon just stops looking
 after PROBE_S and falls back to the physics estimate.
 """
+import os
 import signal
 import time
 
@@ -23,6 +26,7 @@ from openpilot.common.realtime import Ratekeeper
 from openpilot.common.swaglog import cloudlog
 from openpilot.selfdrive.frogpilot.functions.smart_eco import EcoInputs, EcoScore, MeasuredPower, SmartEcoMonitor, parse_config
 from openpilot.selfdrive.frogpilot.functions import smart_eco_trips as trips
+from openpilot.selfdrive.frogpilot.functions import tailgater as tg
 
 RATE_HZ = 20
 PARAMS_RELOAD_S = 5.0
@@ -31,6 +35,97 @@ HV_MSG = "BECMBatteryVoltageCurrent"
 HV_ADDR = 711                # 0x2C7
 PT_BUS = 0
 CHECKPOINT_S = 30.0
+TAILGATER_POLL_S = 0.25
+SEGMENT_POLL_S = 2.0
+
+
+class TailgaterRunner:
+  """Glue between the pure TailgaterSession and the device: params, video segments, xattrs."""
+  def __init__(self, params, params_memory):
+    self.params = params
+    self.mem = params_memory
+    self.session = tg.TailgaterSession()
+    self.night = tg.NightDetector()
+    self.requested = False
+    self.follow_target = 0.0
+    self.segment = None
+    self.preserved = set()
+    self.last_poll = 0.0
+    self.last_seg_poll = -1e9
+    self.mem.put_bool("TailgaterMode", False)
+    self.mem.put("TailgaterFollowS", "0")
+
+  def current_segment(self, now):
+    if now - self.last_seg_poll < SEGMENT_POLL_S:
+      return self.segment
+    self.last_seg_poll = now
+    try:
+      from openpilot.system.hardware.hw import Paths
+      route = self.params.get("CurrentRoute", encoding="utf8")
+      if route:
+        segs = [d for d in os.listdir(Paths.log_root()) if d.startswith(route + "--")]
+        if segs:
+          self.segment = max(segs, key=lambda d: int(d.rpartition("--")[2]))
+    except Exception:
+      pass
+    return self.segment
+
+  def preserve(self, segment):
+    if segment in self.preserved:
+      return
+    try:
+      from openpilot.system.hardware.hw import Paths
+      os.setxattr(os.path.join(Paths.log_root(), segment), "user.preserve", b"1")
+      self.preserved.add(segment)
+    except Exception:
+      cloudlog.exception("smart_ecod: could not preserve segment")
+
+  def update(self, now, sm, cs, pos):
+    if now - self.last_poll >= TAILGATER_POLL_S:
+      self.last_poll = now
+      self.requested = self.mem.get_bool("TailgaterMode")
+      if not self.session.active:  # settings apply from the next session
+        self.session.day_follow = min(max(self.params.get_float("TailgaterDayGap") or tg.DAY_FOLLOW_S, 1.5), 5.0)
+        self.session.night_follow = min(max(self.params.get_float("TailgaterNightGap") or tg.NIGHT_FOLLOW_S, 1.5), 5.0)
+    if sm.updated["wideRoadCameraState"]:
+      cam = sm["wideRoadCameraState"]
+      scale = 6.0 if cam.sensor == log.FrameData.ImageSensor.ar0231 else 1.0
+      self.night.update(max(100.0 - scale * cam.exposureValPercent, 0.0))
+    lead = sm["radarState"].leadOne
+    segment = self.current_segment(now) if (self.session.active or self.session.incident is not None or self.requested) else None
+    target, keep = self.session.update(now, self.requested, sm["controlsState"].enabled, self.night.night, segment,
+                                       cs.vEgo, lead.status, lead.dRel, pos)
+    if keep != self.requested:
+      self.requested = keep
+      self.mem.put_bool("TailgaterMode", keep)
+    if target != self.follow_target:
+      self.follow_target = target
+      self.mem.put("TailgaterFollowS", f"{target:.2f}")
+    for seg in self.session.segments:
+      self.preserve(seg)
+    if self.session.ready_to_save(now):
+      self.save(now)
+
+  def save(self, now):
+    for inc in self.session.pop_finished(now):
+      try:
+        tg.save_incident(inc)
+      except Exception:
+        cloudlog.exception("smart_ecod: incident save failed")
+
+  def shutdown(self, now):
+    self.session.force_end(now)
+    seg = self.current_segment(now + SEGMENT_POLL_S)
+    if self.session.incident is not None and seg and seg not in self.session.segments:
+      self.session.segments.append(seg)
+    for s in self.session.segments:
+      self.preserve(s)
+    self.save(now)
+    try:
+      self.mem.put_bool("TailgaterMode", False)
+      self.mem.put("TailgaterFollowS", "0")
+    except Exception:
+      pass
 
 
 def read_bands(params):
@@ -65,7 +160,10 @@ def main():
   monitor = SmartEcoMonitor(cfg, car_mass, measured)
 
   can_sock = messaging.sub_sock("can", timeout=0) if hv_parser else None
-  sm = messaging.SubMaster(["carState", "carControl", "liveLocationKalman"])
+  sm = messaging.SubMaster(["carState", "carControl", "liveLocationKalman", "controlsState", "radarState", "wideRoadCameraState"],
+                           ignore_alive=["controlsState", "radarState", "wideRoadCameraState"],
+                           ignore_avg_freq=["controlsState", "radarState", "wideRoadCameraState"],
+                           ignore_valid=["controlsState", "radarState", "wideRoadCameraState"])
   pm = messaging.PubMaster(["smartEcoState"])
 
   start_t = time.monotonic()
@@ -86,10 +184,16 @@ def main():
     raise SystemExit
   signal.signal(signal.SIGTERM, _stop)
 
+  tailgater = TailgaterRunner(params, Params("/dev/shm/params"))
+
   try:
     _loop(params, monitor, measured, hv_parser, can_sock, sm, pm, rk, trip, car_mass,
-          profiles_raw, model_raw, bands, score, start_t, last_reload, hv_seen, last_checkpoint, last_t)
+          profiles_raw, model_raw, bands, score, start_t, last_reload, hv_seen, last_checkpoint, last_t, tailgater)
   finally:
+    try:
+      tailgater.shutdown(time.monotonic())
+    except Exception:
+      cloudlog.exception("smart_ecod: tailgater shutdown failed")
     try:
       trips.finalize(trip)
     except Exception:
@@ -97,7 +201,7 @@ def main():
 
 
 def _loop(params, monitor, measured, hv_parser, can_sock, sm, pm, rk, trip, car_mass,
-          profiles_raw, model_raw, bands, score, start_t, last_reload, hv_seen, last_checkpoint, last_t):
+          profiles_raw, model_raw, bands, score, start_t, last_reload, hv_seen, last_checkpoint, last_t, tailgater):
   while True:
     sm.update(0)
     now = time.monotonic()
@@ -147,6 +251,10 @@ def _loop(params, monitor, measured, hv_parser, can_sock, sm, pm, rk, trip, car_
     trip.update(dt, inp.v_ego, inp.a_ego, o.drive_kw, o.target_kw, o.measured_kw, pos,
                 bool(cs.leftBlinker or cs.rightBlinker))
     score.update(dt, inp.v_ego, o.drive_kw, o.target_kw)
+    try:
+      tailgater.update(now, sm, cs, pos)
+    except Exception:
+      cloudlog.exception("smart_ecod: tailgater update failed")
     trip.eco_score = score.trip_score
     if now - last_checkpoint > CHECKPOINT_S:
       last_checkpoint = now
@@ -188,6 +296,9 @@ def _loop(params, monitor, measured, hv_parser, can_sock, sm, pm, rk, trip, car_
     s.paceMiPerKwh = score.pace_mi_per_kwh or 0.0
     s.paceRangeMi = score.pace_range_mi or 0.0
     s.driveKw = o.drive_kw
+    s.tailgaterActive = tailgater.session.active
+    s.tailgaterFollowS = tailgater.follow_target
+    s.tailgaterSecondsLeft = tailgater.session.seconds_left(now)
     pm.send("smartEcoState", msg)
 
     rk.keep_time()

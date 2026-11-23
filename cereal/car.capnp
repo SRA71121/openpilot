@@ -135,6 +135,7 @@ struct CarEvent @0x9b1657f34caf3ad3 {
     turningRight @134;
     vCruise69 @135;
     yourFrogTriedToKillMe @136;
+    followingTooClose @137;
 
     radarCanErrorDEPRECATED @15;
     communityFeatureDisallowedDEPRECATED @62;
@@ -434,6 +435,9 @@ struct CarControl {
       firefox @11;
       noice @12;
       uwu @13;
+
+      # Smart Eco fork
+      backOff @14;
     }
   }
 

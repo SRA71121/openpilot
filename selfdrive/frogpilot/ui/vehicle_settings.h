@@ -22,6 +22,8 @@ private:
 
   ButtonControl *selectMakeButton;
   ButtonControl *selectModelButton;
+  ButtonControl *readCodesButton;
+  ButtonControl *lastCodesButton;
 
   QString carMake;
   QStringList models;

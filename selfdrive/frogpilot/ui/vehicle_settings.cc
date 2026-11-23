@@ -98,6 +98,25 @@ FrogPilotVehiclesPanel::FrogPilotVehiclesPanel(SettingsWindow *parent) : FrogPil
   ParamControl *forceFingerprint = new ParamControl("ForceFingerprint", "Disable Automatic Fingerprint Detection", "Forces the selected fingerprint and prevents it from ever changing.", "", this);
   addItem(forceFingerprint);
 
+  // Smart Eco fork: read-only trouble code scan, run at the next car start
+  readCodesButton = new ButtonControl(tr("Read Trouble Codes"), tr("READ"),
+    tr("Asks the car's modules for stored trouble codes the next time you turn the car on. Read-only: codes are never cleared, "
+       "and it runs before openpilot is ready, adding a few seconds to startup that one time."));
+  QObject::connect(readCodesButton, &ButtonControl::clicked, [this]() {
+    params.putBool("CarCodesRequest", true);
+    readCodesButton->setValue(tr("At next start"));
+    ConfirmationDialog::alert(tr("Trouble codes will be read the next time you turn the car on. Results show under "
+                                 "'Last Trouble Code Scan' and on the Car Tools page in Fleet Manager."), this);
+  });
+  addItem(readCodesButton);
+
+  lastCodesButton = new ButtonControl(tr("Last Trouble Code Scan"), tr("VIEW"), "");
+  QObject::connect(lastCodesButton, &ButtonControl::clicked, [this]() {
+    QString summary = QString::fromStdString(params.get("CarCodesSummary"));
+    ConfirmationDialog::alert(summary.isEmpty() ? tr("No scan yet. Tap READ, then turn the car on.") : summary, this);
+  });
+  addItem(lastCodesButton);
+
   std::vector<std::tuple<QString, QString, QString, QString>> vehicleToggles {
     {"EVTable", "EV Lookup Tables", "Smoothen out the gas and brake controls for EV vehicles.", ""},
     {"GasRegenCmd", "GM Truck Gas Tune", "Increase acceleration and smoothen brake to stop. For use on Silverado/Sierra only.", ""},

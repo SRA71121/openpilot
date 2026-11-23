@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="initial-scale=1, width=device-width">
+<title>Car Tools</title>
+<style>
+  /* Self-contained on purpose: works on the comma hotspot with no internet */
+  :root { --bg:#111418; --card:#1b2027; --line:#2c333d; --fg:#e8ecf1; --dim:#9aa5b1; --good:#6FA8FF; --warn:#f5a524; --bad:#f87171; }
+  * { box-sizing:border-box; }
+  body { margin:0; font:15px/1.4 -apple-system,Segoe UI,Roboto,sans-serif; background:var(--bg); color:var(--fg); }
+  header { padding:14px 16px; display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--line); }
+  header a { color:var(--dim); text-decoration:none; font-size:14px; }
+  h1 { font-size:19px; margin:0; } h2 { font-size:16px; margin:0 0 10px; }
+  main { padding:12px; max-width:900px; margin:0 auto; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:14px; margin-bottom:14px; }
+  table { width:100%; border-collapse:collapse; font-size:14px; }
+  th, td { padding:7px 6px; text-align:left; border-bottom:1px solid var(--line); }
+  th { color:var(--dim); font-weight:500; font-size:12px; }
+  .scroll { overflow-x:auto; }
+  .good { color:var(--good); } .bad { color:var(--bad); } .warn { color:var(--warn); } .dim { color:var(--dim); }
+  button { background:var(--good); color:#0b1220; border:0; border-radius:8px; padding:9px 14px; font-size:14px; font-weight:600; }
+  .note { color:var(--dim); font-size:12px; margin-top:8px; }
+  code { font-size:12px; color:var(--dim); word-break:break-all; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Car Tools</h1>
+  <a href="/">&larr; Fleet Manager</a>
+</header>
+<main>
+
+<div class="card">
+  <h2>Trouble codes</h2>
+  {% if requested %}
+    <p class="warn">Scan queued: it runs the next time you turn the car on.</p>
+  {% else %}
+    <form method="post" action="/car_tools/request_scan"><button type="submit">Read codes at next car start</button></form>
+  {% endif %}
+  <p class="note">Read-only. Codes are never cleared. The scan runs before openpilot is ready, so startup takes a few extra seconds that one time.</p>
+  {% if summary %}<p><b>Last scan:</b> {{ summary }}</p>{% endif %}
+</div>
+
+{% if latest %}
+<div class="card">
+  <h2>Latest scan <span class="dim ts" data-t="{{ latest.time }}"></span></h2>
+  {% if latest.error %}<p class="bad">Error: {{ latest.error }}</p>{% endif %}
+  {% if latest.modules %}
+  <div class="scroll"><table>
+    <tr><th>Module</th><th>Code</th><th>Type</th><th>Status</th></tr>
+    {% for m in latest.modules %}
+      {% if m.codes %}
+        {% for c in m.codes %}
+        <tr><td>{{ m.name }}{% if m.bus %} <span class="dim">(bus {{ m.bus }})</span>{% endif %}</td>
+            <td><b>{{ c.code }}</b></td><td>{{ c.ftb or '' }}</td>
+            <td class="{{ 'bad' if c.status == 'active' else ('warn' if c.status in ('pending','stored','permanent') else 'dim') }}">{{ c.status }}</td></tr>
+        {% endfor %}
+      {% else %}
+        <tr><td>{{ m.name }}{% if m.bus %} <span class="dim">(bus {{ m.bus }})</span>{% endif %}</td><td class="good">No codes</td><td></td><td></td></tr>
+      {% endif %}
+    {% endfor %}
+  </table></div>
+  <p class="note">"Type" is GM's failure type suffix (for example B1325-03). Search "Bolt EV" plus the code for its meaning.</p>
+  {% else %}
+  <p class="dim">No module answered. The comma may not be able to reach this car's diagnostic modules from the camera connector.</p>
+  {% endif %}
+  <p class="note">Took {{ latest.seconds }} s. Tried: {{ latest.methods | join(', ') }}. <a class="dim" href="/car_tools/latest.json">Raw data</a></p>
+</div>
+{% endif %}
+
+{% if history|length > 1 %}
+<div class="card">
+  <h2>Past scans</h2>
+  <div class="scroll"><table>
+    <tr><th>When</th><th>Codes</th></tr>
+    {% for h in history %}
+    <tr><td class="ts" data-t="{{ h.time }}"></td>
+        <td>{% set ns = namespace(c=[]) %}{% for m in h.modules %}{% for c in m.codes %}{% set ns.c = ns.c + [c.code] %}{% endfor %}{% endfor %}
+            {{ ns.c | unique | join(', ') if ns.c else ('error' if h.error else 'none') }}</td></tr>
+    {% endfor %}
+  </table></div>
+</div>
+{% endif %}
+
+<div class="card">
+  <h2>Camera</h2>
+  <p>Road camera sensor: <b>{{ sensor }}</b></p>
+  {% if sensor == 'OS04C10' %}
+    <p>Night Camera Exposure Fix: <b class="{{ 'good' if auto_exposure else 'warn' }}">{{ 'on' if auto_exposure else 'off' }}</b></p>
+    <p class="note">Your comma has the newer camera. On this build its exposure is fixed unless the fix is on (FrogPilot Visuals &rarr; Night Camera Exposure Fix).</p>
+  {% elif sensor == 'OX03C10' %}
+    <p class="note">Older 3X camera: auto exposure already works, so the Night Camera Exposure Fix does nothing on this unit.</p>
+  {% else %}
+    <p class="note">Shows after the first drive on this build.</p>
+  {% endif %}
+</div>
+
+</main>
+<script>
+  document.querySelectorAll('.ts').forEach(function (el) {
+    var t = parseInt(el.dataset.t, 10);
+    if (t) el.textContent = new Date(t * 1000).toLocaleString([], {month:'short', day:'numeric', hour:'numeric', minute:'2-digit'});
+  });
+</script>
+</body>
+</html>

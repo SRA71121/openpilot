@@ -36,6 +36,7 @@ FrogPilotVisualsPanel::FrogPilotVisualsPanel(SettingsWindow *parent) : FrogPilot
     {"PedalsOnUI", "Pedals Being Pressed", "Display which pedals are being pressed on the onroad UI below the steering wheel icon.", ""},
     {"RoadNameUI", "Road Name", "See the name of the road you're on at the bottom of your screen. Sourced from OpenStreetMap.", ""},
 
+    {"CameraAutoExposure", "Night Camera Exposure Fix", "Newer comma 3X units (OS04C10 camera) are stuck at a fixed exposure on this build, which makes the road picture dark at night. This lets the road cameras adjust exposure like openpilot 0.9.7 does.\n\nThe driving model sees this brighter picture too. The driver monitoring camera is not changed. Has no effect on older 3X units.\n\nRequires a reboot.", "../frogpilot/assets/toggle_icons/icon_camera.png"},
     {"DriverCamera", "Driver Camera On Reverse", "Show the driver's camera feed when you shift to reverse.", "../assets/img_driver_face_static.png"},
 
     {"ModelUI", "Model UI", "Personalize how the model's visualizations appear on your screen.", "../assets/offroad/icon_calibration.png"},
@@ -273,7 +274,7 @@ FrogPilotVisualsPanel::FrogPilotVisualsPanel(SettingsWindow *parent) : FrogPilot
     });
   }
 
-  std::set<std::string> rebootKeys = {"DriveStats"};
+  std::set<std::string> rebootKeys = {"CameraAutoExposure", "DriveStats"};
   for (const std::string &key : rebootKeys) {
     QObject::connect(toggles[key], &ToggleControl::toggleFlipped, [this, key]() {
       if (started || key == "DriveStats") {

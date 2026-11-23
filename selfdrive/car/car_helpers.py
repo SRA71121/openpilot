@@ -10,6 +10,7 @@ from openpilot.common.basedir import BASEDIR
 from openpilot.system.version import get_short_branch, is_comma_remote, is_tested_branch
 from openpilot.selfdrive.car.interfaces import get_interface_attr
 from openpilot.selfdrive.car.fingerprints import eliminate_incompatible_cars, all_legacy_fingerprint_cars
+from openpilot.selfdrive.frogpilot.functions.car_codes import run_requested_scan
 from openpilot.selfdrive.car.vin import get_vin, is_valid_vin, VIN_UNKNOWN
 from openpilot.selfdrive.car.fw_versions import get_fw_versions_ordered, get_present_ecus, match_fw_to_car, set_obd_multiplexing
 from openpilot.common.swaglog import cloudlog
@@ -154,6 +155,10 @@ def fingerprint(logcan, sendcan, num_pandas):
       cached = False
 
     exact_fw_match, fw_candidates = match_fw_to_car(car_fw)
+
+    # Smart Eco fork: driver-requested, read-only trouble code scan while the panda is still in
+    # diagnostic-only mode. Does nothing unless requested; can never raise.
+    run_requested_scan(params, logcan, sendcan, set_obd_multiplexing)
   else:
     vin_rx_addr, vin_rx_bus, vin = -1, -1, VIN_UNKNOWN
     exact_fw_match, fw_candidates, car_fw = True, set(), []

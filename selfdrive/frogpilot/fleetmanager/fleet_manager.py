@@ -412,6 +412,35 @@ def smart_eco_export():
                   "battery_12v": Battery12VLog.load().to_dict()})
 
 
+# ---- Car Tools: trouble codes and camera info --------------------------------
+from openpilot.selfdrive.frogpilot.functions import car_codes
+
+
+@app.route("/car_tools", methods=["GET"])
+def car_tools_page():
+  from openpilot.common.params import Params
+  p = Params()
+  return render_template("car_tools.html",
+                         latest=car_codes.load_latest(),
+                         history=list(reversed(car_codes.load_history()))[:20],
+                         requested=p.get_bool("CarCodesRequest"),
+                         summary=p.get("CarCodesSummary", encoding="utf8") or "",
+                         sensor=p.get("CameraSensor", encoding="utf8") or "not seen yet",
+                         auto_exposure=p.get_bool("CameraAutoExposure"))
+
+
+@app.route("/car_tools/request_scan", methods=["POST"])
+def car_tools_request_scan():
+  from openpilot.common.params import Params
+  Params().put_bool("CarCodesRequest", True)
+  return redirect("/car_tools")
+
+
+@app.route("/car_tools/latest.json", methods=["GET"])
+def car_tools_latest():
+  return jsonify(car_codes.load_latest() or {})
+
+
 def main():
   try:
     set_core_affinity([0, 1, 2, 3])

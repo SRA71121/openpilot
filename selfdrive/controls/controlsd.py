@@ -39,6 +39,7 @@ from openpilot.system.version import get_short_branch
 from openpilot.selfdrive.frogpilot.functions.frogpilot_functions import CRUISING_SPEED
 
 from openpilot.selfdrive.frogpilot.functions.speed_limit_controller import SpeedLimitController
+from openpilot.selfdrive.frogpilot.functions.follow_warning import FollowWarning
 
 SOFT_DISABLE_TIME = 3  # seconds
 LDW_MIN_SPEED = 31 * CV.MPH_TO_MS
@@ -195,6 +196,7 @@ class Controls:
     self.drive_time = 0
     self.max_acceleration = 0
     self.previous_lead_distance = 0
+    self.follow_warning = FollowWarning()
     self.previous_speed_limit = SpeedLimitController.desired_speed_limit
     self.random_event_timer = 0
 
@@ -649,6 +651,14 @@ class Controls:
 
       if green_light:
         self.events.add(EventName.greenLight)
+
+    # Smart Eco fork: following-too-close warning (alert only, works engaged or not)
+    if self.follow_warning_enabled:
+      lead = self.sm['radarState'].leadOne
+      if self.follow_warning.update(DT_CTRL, self.driving_gear, CS.vEgo, lead.status, lead.dRel,
+                                    self.follow_warning_gap, self.follow_warning_speed,
+                                    CS.leftBlinker or CS.rightBlinker, CS.standstill):
+        self.events.add(EventName.followingTooClose)
 
     # Lead departing alert
     if self.lead_departing_alert and self.sm.frame % 50 == 0:
@@ -1224,6 +1234,10 @@ class Controls:
     self.green_light_alert = custom_alerts and self.params.get_bool("GreenLightAlert")
     self.lead_departing_alert = custom_alerts and self.params.get_bool("LeadDepartingAlert")
     self.loud_blindspot_alert = custom_alerts and self.params.get_bool("LoudBlindspotAlert")
+
+    self.follow_warning_enabled = self.params.get_bool("FollowWarning")
+    self.follow_warning_gap = self.params.get_float("FollowWarningGap") or 1.0
+    self.follow_warning_speed = (self.params.get_float("FollowWarningSpeed") or 0.0) * CV.MPH_TO_MS
 
     custom_theme = self.params.get_bool("CustomTheme")
     custom_sounds = self.params.get_int("CustomSounds") if custom_theme else 0

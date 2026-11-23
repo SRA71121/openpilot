@@ -1029,6 +1029,14 @@ EVENTS: Dict[int, Dict[str, Union[Alert, AlertCallbackType]]] = {
     ET.PERMANENT: holiday_alert,
   },
 
+  EventName.followingTooClose: {
+    ET.PERMANENT: Alert(
+      "Back off",
+      "Following too close. Chill out.",
+      AlertStatus.frogpilot, AlertSize.mid,
+      Priority.LOW, VisualAlert.none, AudibleAlert.backOff, 3.),
+  },
+
   EventName.laneChangeBlockedLoud: {
     ET.WARNING: Alert(
       "Car Detected in Blindspot",

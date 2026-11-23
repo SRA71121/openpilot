@@ -38,6 +38,7 @@ class PowerMonitoring:
     self.car_battery_capacity_uWh = max((CAR_BATTERY_CAPACITY_uWh / 10), int(car_battery_capacity_uWh))
 
     # FrogPilot variables
+    self.params_memory = Params("/dev/shm/params")
     device_shutdown_setting = self.params.get_int("DeviceShutdown")
     # If the toggle is set for < 1 hour, configure by 15 minute increments
     self.device_shutdown_time = (device_shutdown_setting - 3) * 3600 if device_shutdown_setting >= 4 else device_shutdown_setting * (60 * 15)
@@ -122,7 +123,10 @@ class PowerMonitoring:
     offroad_time = (now - offroad_timestamp)
     low_voltage_shutdown = (self.car_voltage_mV < (VBATT_PAUSE_CHARGING * 1e3) and
                             offroad_time > VOLTAGE_SHUTDOWN_MIN_OFFROAD_TIME_S)
-    should_shutdown |= offroad_time > self.device_shutdown_time
+    # Smart Eco fork: battery12vd may hold the shutdown TIMER (never the low-voltage or capacity checks)
+    # while its once-a-day 2-hour 12V test finishes; capped at 3 hours after parking regardless
+    battery_test_hold = offroad_time < 3 * 3600 and self.params_memory.get_bool("SmartEco12VHold")
+    should_shutdown |= offroad_time > self.device_shutdown_time and not battery_test_hold
     should_shutdown |= low_voltage_shutdown
     should_shutdown |= (self.car_battery_capacity_uWh <= 0)
     should_shutdown &= not ignition

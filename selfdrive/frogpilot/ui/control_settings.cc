@@ -1,3 +1,5 @@
+#include <QDateTime>
+
 #include "selfdrive/frogpilot/ui/control_settings.h"
 
 FrogPilotControlsPanel::FrogPilotControlsPanel(SettingsWindow *parent) : FrogPilotListWidget(parent) {
@@ -75,6 +77,7 @@ FrogPilotControlsPanel::FrogPilotControlsPanel(SettingsWindow *parent) : FrogPil
     {"SmartEcoGlide", "Highway Glide", "Above 35 mph with openpilot controlling speed: coast down hills and let speed float a little above your set speed instead of regenerating, then glide back down. Turns off for close or slower lead cars and curves.", ""},
     {"SmartEcoGlideBand", "Glide Above Set Speed", "How far above your set speed Highway Glide may let the car coast before regen holds it.", ""},
     {"SmartEcoSagBand", "Allowed Slowdown On Climbs", "How far below your set speed the Power Ceiling may let the car slow on a hill before it holds speed anyway.", ""},
+    {"SmartEco12VDrain", "12V Parked Drop Warning", "Once a day, on the first long park with nothing charging, the comma stays on for 2 hours (past your shutdown timer) to test the 12V: once at 30 minutes, when the Bolt is asleep, and again 90 minutes later. Warn if it dropped more than this per 2 hours. A healthy rested battery barely moves. Plugging in cancels that day's test.", ""},
     {"SmartEco12VWarn", "12V Low Warning Below", "One 12V reading is taken per park, right before the comma shuts itself off (your Device Shutdown Timer sets how long the battery has rested). Warn when it drops below this. Lead-acid: ~12.2 V is about half charged. LiFePO4 rests higher (~13.2 V).", ""},
 
     {"SpeedLimitController", "Speed Limit Controller", "Automatically adjust vehicle speed to match speed limits using 'Open Street Map's, 'Navigate On openpilot', or your car's dashboard (TSS2 Toyotas only).", "../assets/offroad/icon_speed_limit.png"},
@@ -474,12 +477,15 @@ FrogPilotControlsPanel::FrogPilotControlsPanel(SettingsWindow *parent) : FrogPil
         for (FrogPilotDualParamControl *row : smartEcoBandRows) {
           row->setVisible(true);
         }
+        newBatteryButton->setVisible(true);
       });
       toggle = smartEcoToggle;
     } else if (param == "FollowWarningGap" || param == "FollowWarningRedGap") {
       toggle = new FrogPilotParamValueControl(param, title, desc, icon, 0.5, 2.0, std::map<int, QString>(), this, false, " s", 1, 0.1);
     } else if (param == "FollowWarningSpeed") {
       toggle = new FrogPilotParamValueControl(param, title, desc, icon, 0, 60, std::map<int, QString>(), this, false, " mph");
+    } else if (param == "SmartEco12VDrain") {
+      toggle = new FrogPilotParamValueControl(param, title, desc, icon, 0.05, 0.30, std::map<int, QString>(), this, false, " V", 1, 0.01);
     } else if (param == "SmartEcoGlideBand" || param == "SmartEcoSagBand") {
       toggle = new FrogPilotParamValueControl(param, title, desc, icon, 1, 5, std::map<int, QString>(), this, false, " mph");
     } else if (param == "SmartEco12VWarn") {
@@ -500,6 +506,20 @@ FrogPilotControlsPanel::FrogPilotControlsPanel(SettingsWindow *parent) : FrogPil
         smartEcoBandRows.push_back(row);
       }
       toggle = new FrogPilotParamValueControl(param, title, desc, icon, 11.5, 13.5, std::map<int, QString>(), this, false, " V", 1, 0.1);
+
+      // Smart Eco fork: record a new 12V battery (starts a new entry in the battery history)
+      newBatteryButton = new ButtonControl(tr("New 12V Battery Installed"), tr("RECORD"),
+        tr("Starts a new entry in the 12V battery history with today's date, so you can see how long each battery lasts. "
+           "Warnings start fresh for the new battery. A different install date can be entered in Fleet Manager."));
+      QObject::connect(newBatteryButton, &ButtonControl::clicked, [this]() {
+        QStringList types = {"Lead-acid (flooded)", "AGM", "LiFePO4", "Other"};
+        QString type = MultiOptionDialog::getSelection(tr("Battery type"), types, "", this);
+        if (type.isEmpty()) return;
+        if (ConfirmationDialog::confirm(tr("Record a new %1 battery installed today?").arg(type), tr("Record"), this)) {
+          params.put("SmartEco12VInstallRequest", (QString::number(QDateTime::currentSecsSinceEpoch()) + "|" + type).toStdString());
+        }
+      });
+      addItem(newBatteryButton);
 
     } else if (param == "VisionTurnControl") {
       FrogPilotParamManageControl *visionTurnControlToggle = new FrogPilotParamManageControl(param, title, desc, icon, this);
@@ -738,6 +758,7 @@ void FrogPilotControlsPanel::hideSubToggles() {
   for (FrogPilotDualParamControl *row : smartEcoBandRows) {
     row->setVisible(false);
   }
+  newBatteryButton->setVisible(false);
 
   for (auto &[key, toggle] : toggles) {
     bool subToggles = aolKeys.find(key.c_str()) != aolKeys.end() ||

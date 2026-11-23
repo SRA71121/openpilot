@@ -26,6 +26,7 @@ import random
 import secrets
 import threading
 import time
+from datetime import datetime
 
 from flask import Flask, jsonify, render_template, Response, request, send_from_directory, session, redirect, url_for
 import requests
@@ -338,7 +339,7 @@ def store_toggle_values_route():
 
 # ---- Smart Eco Cruise: trips, leaderboards, speed vs power -------------------
 from openpilot.selfdrive.frogpilot.functions import smart_eco_trips as eco_trips
-from openpilot.selfdrive.frogpilot.functions.smart_eco_12v import Battery12VLog
+from openpilot.selfdrive.frogpilot.functions.smart_eco_12v import Battery12VLog, battery_summaries, load_history
 
 
 def _eco_context():
@@ -383,7 +384,25 @@ def _v12_context():
     pts = [xy(r) for r in trusted]
     chart = {"points": " ".join(f"{x},{y}" for x, y in pts), "dots": pts,
              "warn_y": round(150 * (1 - (min(max(warn, vmin), vmax) - vmin) / (vmax - vmin)) + 5, 1)}
-  return {"latest": log12.latest(), "readings": list(reversed(log12.readings))[:30], "warn": warn, "chart": chart}
+  drain = fleet.params.get_float("SmartEco12VDrain") or 0.10
+  return {"latest": log12.latest(), "readings": list(reversed(log12.readings))[:30], "warn": warn, "chart": chart,
+          "drain": drain,
+          "batteries": battery_summaries(load_history(), log12.readings, warn, drain, time.time()),
+          "install_pending": bool(fleet.params.get("SmartEco12VInstallRequest"))}
+
+
+@app.route("/smart_eco/battery_install", methods=["POST"])
+def smart_eco_battery_install():
+  # Handed to battery12vd (same path as the button on the comma) so its warnings reset too
+  try:
+    when = datetime.strptime(request.form.get("date", ""), "%Y-%m-%d")
+    epoch = int(when.timestamp()) + 12 * 3600   # midday that date
+    btype = request.form.get("type", "").replace("|", " ")[:20]
+    note = request.form.get("note", "").replace("|", " ")[:80]
+    fleet.params.put("SmartEco12VInstallRequest", f"{epoch}|{btype}|{note}")
+  except ValueError:
+    pass
+  return redirect("/smart_eco#battery")
 
 
 @app.route("/smart_eco/trip/<int:start>", methods=["GET"])

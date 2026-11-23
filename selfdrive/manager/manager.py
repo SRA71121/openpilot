@@ -97,6 +97,7 @@ def manager_init() -> None:
     ("FollowWarningGap", "1.0"),
     ("FollowWarningRedGap", "0.6"),
     ("FollowWarningSpeed", "25"),
+    ("SmartEco12VDrain", "0.10"),
     ("SmartEco12VWarn", "12.2"),
     ("SmartEcoGlide", "0"),
     ("SmartEcoGlideBand", "3"),

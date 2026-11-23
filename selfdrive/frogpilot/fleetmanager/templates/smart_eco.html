@@ -187,12 +187,14 @@
     {% endif %}
     {% if v12.readings %}
     <div class="scroll"><table style="margin-top:10px">
-      <tr><th>Reading taken</th><th>volts</th><th>rested</th><th></th></tr>
+      <tr><th>Reading taken</th><th>volts</th><th>rested</th><th>est. temp</th><th>2-h drop</th><th></th></tr>
       {% for r in v12.readings %}
       <tr>
         <td><span class="ts short" data-t="{{ r[0] }}"></span></td>
         <td class="{{ 'bad' if (not r[3] and r[1] < v12.warn) else '' }}">{{ '%.2f' % r[1] }}</td>
         <td>{{ ('%.1f h' % (r[2] / 60)) if r[2] >= 0 else '?' }}</td>
+        <td>{{ ('%.0f&deg;F' % ((r[4] - 8.0) * 9 / 5 + 32)) | safe if (r|length > 4 and r[4] is not none) else '-' }}</td>
+        <td class="{{ 'bad' if (r|length > 5 and r[5] is not none and r[5] > v12.drain) else '' }}">{{ ('%.2f V' % r[5]) if (r|length > 5 and r[5] is not none) else '-' }}</td>
         <td class="dim">{{ 'short rest' if r[3] else '' }}</td>
       </tr>
       {% endfor %}
@@ -202,6 +204,40 @@
     {% else %}
     <div class="dim">No readings yet. The first one is recorded at the start of the drive after your next park.</div>
     {% endif %}
+  </div>
+
+  <div class="card" id="battery">
+    <h2>12V battery history</h2>
+    {% if v12.install_pending %}<p class="warn">New battery recorded: it appears here within a few seconds while the comma is on.</p>{% endif %}
+    {% if v12.batteries %}
+    <div class="scroll"><table>
+      <tr><th>Installed</th><th>Type</th><th>In service</th><th>Parks tested</th><th>30-day avg</th><th>Lowest</th><th>Low warnings</th><th>Drain warnings</th><th>Worst 2-h drop</th></tr>
+      {% for b in v12.batteries %}
+      <tr>
+        <td><span class="tsd" data-t="{{ b.installed }}"></span>{% if b.current %} <span class="good">current</span>{% endif %}{% if b.note %}<br><span class="dim">{{ b.note }}</span>{% endif %}</td>
+        <td>{{ b.type or '-' }}</td>
+        <td>{{ '%.0f' % b.days }} days{% if not b.current %}<br><span class="dim">replaced <span class="tsd" data-t="{{ b.removed }}"></span></span>{% endif %}</td>
+        <td>{{ b.parks }}</td>
+        <td>{{ ('%.2f V' % b.avg_30d) if b.avg_30d is not none else '-' }}</td>
+        <td class="{{ 'bad' if (b.lowest is not none and b.lowest < v12.warn) else '' }}">{{ ('%.2f V' % b.lowest) if b.lowest is not none else '-' }}</td>
+        <td class="{{ 'bad' if b.low_count else '' }}">{{ b.low_count }}</td>
+        <td class="{{ 'bad' if b.drain_count else '' }}">{{ b.drain_count }}{% if b.drop_tests %} <span class="dim">of {{ b.drop_tests }}</span>{% endif %}</td>
+        <td>{{ ('%.2f V' % b.worst_drop) if b.worst_drop is not none else '-' }}</td>
+      </tr>
+      {% endfor %}
+    </table></div>
+    {% else %}
+    <p class="dim">No battery recorded yet. Add your current battery's install date below so its age is tracked.</p>
+    {% endif %}
+    <form method="post" action="/smart_eco/battery_install" class="rename" style="flex-wrap:wrap;margin-top:12px">
+      <input type="date" name="date" required style="flex:0 0 auto">
+      <select name="type" style="background:var(--bg);color:var(--fg);border:1px solid var(--line);border-radius:8px;padding:6px 8px">
+        <option>Lead-acid (flooded)</option><option>AGM</option><option>LiFePO4</option><option>Other</option>
+      </select>
+      <input name="note" placeholder="Note (brand, where bought, warranty)">
+      <button type="submit">Record battery</button>
+    </form>
+    <div class="note">Recording a battery starts its history from that date; warnings start fresh for it. The comma has the same button (Smart Eco settings &rarr; New 12V Battery Installed).</div>
   </div>
 
   <div class="card">
@@ -253,6 +289,12 @@
 
   <a class="btn" href="/smart_eco/export.json">Download all trip data (JSON)</a>
 </main>
+<script>
+  document.querySelectorAll('.tsd').forEach(function (el) {
+    var t = parseFloat(el.dataset.t);
+    if (t) el.textContent = new Date(t * 1000).toLocaleDateString([], {year:'numeric', month:'short', day:'numeric'});
+  });
+</script>
 <script>
   document.querySelectorAll('.ts').forEach(function (el) {
     var d = new Date(parseFloat(el.dataset.t) * 1000);

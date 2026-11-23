@@ -1037,6 +1037,38 @@ EVENTS: Dict[int, Dict[str, Union[Alert, AlertCallbackType]]] = {
       Priority.LOW, VisualAlert.none, AudibleAlert.backOff, .5),
   },
 
+  EventName.battery12VLow: {
+    ET.PERMANENT: Alert(
+      "12V battery below safety threshold",
+      "Check the terminals, then charge it to avoid being stranded.",
+      AlertStatus.userPrompt, AlertSize.mid,
+      Priority.MID, VisualAlert.none, AudibleAlert.prompt, 8.),
+  },
+
+  EventName.battery12VCold: {
+    ET.PERMANENT: Alert(
+      "12V battery low in the cold",
+      "Check terminals, then charge. Load test if still low when warm.",
+      AlertStatus.userPrompt, AlertSize.mid,
+      Priority.MID, VisualAlert.none, AudibleAlert.prompt, 8.),
+  },
+
+  EventName.battery12VDrain: {
+    ET.PERMANENT: Alert(
+      "12V battery dropping while parked",
+      "Check terminals and for anything left on.",
+      AlertStatus.userPrompt, AlertSize.mid,
+      Priority.MID, VisualAlert.none, AudibleAlert.prompt, 8.),
+  },
+
+  EventName.battery12VRepeat: {
+    ET.PERMANENT: Alert(
+      "12V low battery triggered repeatedly",
+      "Have it load tested at the nearest auto parts store.",
+      AlertStatus.critical, AlertSize.mid,
+      Priority.MID, VisualAlert.none, AudibleAlert.prompt, 8.),
+  },
+
   EventName.followingTooCloseRed: {
     ET.PERMANENT: Alert(
       "BACK OFF",

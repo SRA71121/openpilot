@@ -137,6 +137,10 @@ struct CarEvent @0x9b1657f34caf3ad3 {
     yourFrogTriedToKillMe @136;
     followingTooClose @137;
     followingTooCloseRed @138;
+    battery12VLow @139;
+    battery12VRepeat @140;
+    battery12VCold @141;
+    battery12VDrain @142;
 
     radarCanErrorDEPRECATED @15;
     communityFeatureDisallowedDEPRECATED @62;

@@ -54,7 +54,19 @@
     "severity": 0
   },
   "Offroad_SmartEco12VLow": {
-    "text": "12V battery is resting at %1 V. Consider charging or testing it, especially before cold mornings.",
-    "severity": 0
+    "text": "Battery voltage is below the safety threshold as a result of a weak battery. Inspect the battery terminals for corrosion or looseness first, then charge your battery to avoid being stranded.",
+    "severity": 1
+  },
+  "Offroad_SmartEco12VCold": {
+    "text": "Low battery voltage in cold weather. Cold temporarily lowers 12V battery voltage, and a weak 12V can keep the car from powering on. Inspect the terminals, then charge your battery. If it stays low once warmed up, have it load tested.",
+    "severity": 1
+  },
+  "Offroad_SmartEco12VDrain": {
+    "text": "12V battery dropped %1 V in 2 hours while parked. A healthy battery holds steady once the car is asleep. Inspect the terminals and check for anything left on. If it keeps happening, have the battery load tested.",
+    "severity": 1
+  },
+  "Offroad_SmartEco12VRepeat": {
+    "text": "Low battery threshold triggered repeatedly. Please take your battery to be load tested at the nearest auto parts store.",
+    "severity": 1
   }
 }

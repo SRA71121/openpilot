@@ -197,6 +197,7 @@ class Controls:
     self.max_acceleration = 0
     self.previous_lead_distance = 0
     self.follow_warning = FollowWarning()
+    self.battery_banner_checked = False
     self.previous_speed_limit = SpeedLimitController.desired_speed_limit
     self.random_event_timer = 0
 
@@ -651,6 +652,20 @@ class Controls:
 
       if green_light:
         self.events.add(EventName.greenLight)
+
+    # Smart Eco fork: 12V banner once per drive, ~8 s after start (after battery12vd records the last park)
+    if not self.battery_banner_checked and self.sm.frame * DT_CTRL >= 8.0:
+      self.battery_banner_checked = True
+      battery_status = self.params.get_int("SmartEco12VStatus") if self.params.get_bool("SmartEcoCruise") else 0
+      low_status, draining = battery_status % 10, battery_status >= 10
+      if low_status == 2:
+        self.events.add(EventName.battery12VRepeat)
+      elif low_status == 3:
+        self.events.add(EventName.battery12VCold)
+      elif low_status == 1:
+        self.events.add(EventName.battery12VLow)
+      elif draining:
+        self.events.add(EventName.battery12VDrain)
 
     # Smart Eco fork: two-step following-too-close reminder (alert only; engaged, Always On Lateral or off)
     if self.follow_warning_enabled:

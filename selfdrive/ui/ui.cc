@@ -311,6 +311,24 @@ static void update_state(UIState *s) {
   }
   scene.started = sm["deviceState"].getDeviceState().getStarted() && scene.ignition;
 
+  // Smart Eco fork: Night Mode from the camera light sensor (0 dark .. 100 bright).
+  // Needs 5 s past the threshold to switch either way so tunnels, overpasses and streetlights don't flicker it.
+  {
+    constexpr float NIGHT_ENTER = 15.0f, NIGHT_EXIT = 30.0f;
+    static int night_frames = 0;
+    if (scene.night_mode_enabled && scene.started) {
+      const bool past = scene.night_mode ? scene.light_sensor > NIGHT_EXIT : scene.light_sensor < NIGHT_ENTER;
+      night_frames = past ? night_frames + 1 : 0;
+      if (night_frames > 5 * UI_FREQ) {
+        scene.night_mode = !scene.night_mode;
+        night_frames = 0;
+      }
+    } else {
+      scene.night_mode = false;
+      night_frames = 0;
+    }
+  }
+
   scene.world_objects_visible = scene.world_objects_visible ||
                                 (scene.started &&
                                  sm.rcv_frame("liveCalibration") > scene.started_frame &&
@@ -357,7 +375,7 @@ void ui_update_frogpilot_params(UIState *s) {
   scene.custom_colors = custom_theme ? params.getInt("CustomColors") : 0;
   scene.custom_icons = custom_theme ? params.getInt("CustomIcons") : 0;
   scene.custom_signals = custom_theme ? params.getInt("CustomSignals") : 0;
-  scene.holiday_themes = custom_theme && params.getBool("HolidayThemes");
+  scene.holiday_themes = false;  // Smart Eco fork: holiday themes disabled; the driver's chosen theme always stays
 
   scene.disable_smoothing_mtsc = params.getBool("DisableMTSCSmoothing");
   scene.disable_smoothing_vtsc = params.getBool("DisableVTSCSmoothing");
@@ -398,6 +416,8 @@ void ui_update_frogpilot_params(UIState *s) {
   scene.hide_max_speed = hide_ui_elements && params.getBool("HideMaxSpeed");
   scene.screen_brightness = screen_management ? params.getInt("ScreenBrightness") : 101;
   scene.screen_brightness_onroad = screen_management ? params.getInt("ScreenBrightnessOnroad") : 101;
+  scene.night_mode_enabled = params.getBool("NightMode");
+  scene.night_brightness = std::clamp(params.getInt("NightBrightness"), 1, 100);
   scene.screen_recorder = screen_management && params.getBool("ScreenRecorder");
   scene.screen_timeout = screen_management ? params.getInt("ScreenTimeout") : 30;
   scene.screen_timeout_onroad = screen_management ? params.getInt("ScreenTimeoutOnroad") : 10;
@@ -550,6 +570,11 @@ void Device::updateBrightness(const UIState &s) {
 
     // Scale back to 10% to 100%
     clipped_brightness = std::clamp(100.0f * clipped_brightness, 10.0f, 100.0f);
+
+    // Smart Eco fork: Night Mode uses the driver's night brightness instead
+    if (s.scene.night_mode) {
+      clipped_brightness = s.scene.night_brightness;
+    }
   }
 
   int brightness = brightness_filter.update(clipped_brightness);

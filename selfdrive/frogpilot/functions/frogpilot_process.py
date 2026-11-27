@@ -44,6 +44,13 @@ class FrogPilotProcess:
     return start_of_week <= current_date <= end_of_week
 
   def check_date(self):
+    # Smart Eco fork: holiday themes disabled - never switch away from the driver's chosen theme
+    self.params_memory.put_int("CurrentHolidayTheme", 0)
+    if self.previous_theme_id != 0:
+      threading.Thread(target=self.update_holiday_theme).start()
+    self.previous_theme_id = 0
+    return
+
     current_date = datetime.datetime.now()
     year = current_date.year
 

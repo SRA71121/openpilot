@@ -544,6 +544,7 @@ AnnotatedCameraWidget::AnnotatedCameraWidget(VisionStreamType type, QWidget* par
   main_layout->addWidget(map_settings_btn, 0, Qt::AlignBottom | Qt::AlignRight);
 
   dm_img = loadPixmap("../assets/img_driver_face.png", {img_size + 5, img_size + 5});
+  frogSkinImg = loadPixmap("../frogpilot/assets/other_images/frog_skin.png", {256, 256});
 
   // Initialize FrogPilot widgets
   initializeFrogPilotWidgets();
@@ -892,15 +893,31 @@ void AnnotatedCameraWidget::drawLaneLines(QPainter &painter, const UIState *s) {
   const QColor modeFill = mode == STATUS_LATERAL_ACTIVE ? QColor(0x0A, 0x0A, 0xDA)
                         : (mode == STATUS_ENGAGED || mode == STATUS_OVERRIDE) ? QColor(0xB8, 0xC2, 0xCC)
                         : QColor(0x80, 0x80, 0x80);
-  const QColor modeEdge(0x00, 0x00, 0x00);  // Stephen: path outline black in every mode
+  const QColor modeEdge = scene.night_mode ? QColor(0x0A, 0x0A, 0xDA) : QColor(0x00, 0x00, 0x00);  // Stephen: black outline; #0A0ADA at night
   const bool modeOff = !(mode == STATUS_LATERAL_ACTIVE || mode == STATUS_ENGAGED || mode == STATUS_OVERRIDE);
   bg = QLinearGradient(0, height(), 0, 0);
   bg.setColorAt(0.0, QColor(modeFill.red(), modeFill.green(), modeFill.blue(), modeOff ? 30 : 140));
   bg.setColorAt(0.5, QColor(modeFill.red(), modeFill.green(), modeFill.blue(), modeOff ? 20 : 110));
   bg.setColorAt(1.0, QColor(modeFill.red(), modeFill.green(), modeFill.blue(), 0));
 
-  painter.setBrush(bg);
-  painter.drawPolygon(scene.track_vertices);
+  const bool nightPath = scene.night_mode && !frogSkinImg.isNull();
+  if (nightPath) {
+    // Night Mode: blue poison dart frog skin, faded toward the horizon like the normal path
+    painter.save();
+    painter.setOpacity(modeOff ? 0.25 : 0.85);
+    painter.setBrush(QBrush(frogSkinImg));
+    painter.drawPolygon(scene.track_vertices);
+    painter.restore();
+    QLinearGradient fade(0, height(), 0, 0);
+    fade.setColorAt(0.0, QColor(0, 0, 0, 0));
+    fade.setColorAt(0.6, QColor(0, 0, 0, 90));
+    fade.setColorAt(1.0, QColor(0, 0, 0, 220));
+    painter.setBrush(fade);
+    painter.drawPolygon(scene.track_vertices);
+  } else {
+    painter.setBrush(bg);
+    painter.drawPolygon(scene.track_vertices);
+  }
 
   // Create new path with track vertices and track edge vertices
   QPainterPath path;

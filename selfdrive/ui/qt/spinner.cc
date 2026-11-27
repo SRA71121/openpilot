@@ -1,6 +1,7 @@
 #include "selfdrive/ui/qt/spinner.h"
 
 #include <algorithm>
+#include <cmath>
 #include <cstdio>
 #include <iostream>
 #include <string>
@@ -19,24 +20,25 @@ TrackWidget::TrackWidget(QWidget *parent) : QWidget(parent) {
   setAttribute(Qt::WA_OpaquePaintEvent);
   setFixedSize(spinner_size);
 
-  // pre-compute all the track imgs. make this a gif instead?
+  // Smart Eco fork: the frog sits still while a soft blue (#0A0ADA) glow behind it pulses.
   QPixmap comma_img = loadPixmap("../assets/img_spinner_comma.png", spinner_size);
-  QPixmap track_img = loadPixmap("../assets/img_spinner_track.png", spinner_size);
+  QPixmap glow_img = loadPixmap("../assets/img_spinner_glow.png", spinner_size);
 
-  QTransform transform(1, 0, 0, 1, width() / 2, height() / 2);
   QPixmap pm(spinner_size);
   QPainter p(&pm);
   p.setRenderHint(QPainter::SmoothPixmapTransform);
   for (int i = 0; i < track_imgs.size(); ++i) {
-    p.resetTransform();
+    const double k = 0.2 + 0.8 * (0.5 - 0.5 * std::cos(2.0 * M_PI * i / track_imgs.size()));
+    p.setOpacity(1.0);
     p.fillRect(0, 0, spinner_size.width(), spinner_size.height(), Qt::black);
+    p.setOpacity(k);
+    p.drawPixmap(0, 0, glow_img);
+    p.setOpacity(1.0);
     p.drawPixmap(0, 0, comma_img);
-    p.setTransform(transform.rotate(360 / spinner_fps));
-    p.drawPixmap(-width() / 2, -height() / 2, track_img);
     track_imgs[i] = pm.copy();
   }
 
-  m_anim.setDuration(1000);
+  m_anim.setDuration(2000);  // one slow breath every 2 s
   m_anim.setStartValue(0);
   m_anim.setEndValue(int(track_imgs.size() -1));
   m_anim.setLoopCount(-1);

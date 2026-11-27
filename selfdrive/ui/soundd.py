@@ -237,7 +237,7 @@ class Soundd:
       14: "sunburst_theme"
     }
 
-    holiday_themes = custom_theme and self.params.get_bool("HolidayThemes")
+    holiday_themes = False  # Smart Eco fork: holiday themes disabled
     current_holiday_theme = self.params_memory.get_int("CurrentHolidayTheme") if holiday_themes else 0
 
     holiday_theme_configuration = {

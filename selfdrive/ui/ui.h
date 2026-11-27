@@ -276,6 +276,9 @@ typedef struct UIScene {
   int obstacle_distance_stock;
   int screen_brightness;
   int screen_brightness_onroad;
+  bool night_mode = false;          // Smart Eco fork: dark outside (light sensor)
+  bool night_mode_enabled = false;
+  int night_brightness = 15;
   int screen_timeout;
   int screen_timeout_onroad;
   int steering_angle_deg;

@@ -39,6 +39,7 @@ from openpilot.system.version import get_short_branch
 from openpilot.selfdrive.frogpilot.functions.frogpilot_functions import CRUISING_SPEED
 
 from openpilot.selfdrive.frogpilot.functions.speed_limit_controller import SpeedLimitController
+from openpilot.selfdrive.frogpilot.functions.green_light import GreenLightGate
 from openpilot.selfdrive.frogpilot.functions.follow_warning import FollowWarning
 
 SOFT_DISABLE_TIME = 3  # seconds
@@ -191,6 +192,7 @@ class Controls:
     self.previously_enabled = False
     self.random_event_triggered = False
     self.stopped_for_light_previously = False
+    self.green_light_gate = GreenLightGate()
 
     self.drive_distance = 0
     self.drive_time = 0
@@ -639,9 +641,8 @@ class Controls:
 
     # Green light alert
     if self.green_light_alert:
-      stopped_for_light = frogpilot_plan.redLight and CS.standstill
-      green_light = not stopped_for_light and self.stopped_for_light_previously
-      self.stopped_for_light_previously = stopped_for_light
+      # Smart Eco fork: once per stop, only after a real stop and a steady "go" (no repeats while waiting)
+      green_light = self.green_light_gate.update(DT_CTRL, frogpilot_plan.redLight, CS.standstill, CS.vEgo)
 
       self.previously_enabled |= (self.enabled or self.FPCC.alwaysOnLateral) and CS.vEgo > CRUISING_SPEED
       self.previously_enabled &= self.driving_gear
@@ -1262,7 +1263,7 @@ class Controls:
     custom_sounds = self.params.get_int("CustomSounds") if custom_theme else 0
     frog_sounds = custom_sounds == 1
     self.goat_scream = frog_sounds and self.params.get_bool("GoatScream")
-    self.holiday_themes = custom_theme and self.params.get_bool("HolidayThemes")
+    self.holiday_themes = False  # Smart Eco fork: holiday themes disabled
 
     experimental_mode_activation = self.params.get_bool("ExperimentalModeActivation")
     self.frogpilot_variables.experimental_mode_via_distance = experimental_mode_activation and self.params.get_bool("ExperimentalModeViaDistance")

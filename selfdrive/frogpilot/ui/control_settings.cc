@@ -68,17 +68,20 @@ FrogPilotControlsPanel::FrogPilotControlsPanel(SettingsWindow *parent) : FrogPil
     {"SetSpeedOffset", "Set Speed Offset", "Set an offset for your desired set speed.", ""},
 
     {"SmartEcoCruise", "Smart Eco Cruise", "Energy logging, trip scores and leaderboards, plus optional power-saving speed control when openpilot controls your speed.", "../frogpilot/assets/toggle_icons/icon_custom.png"},
-    {"FollowWarning", "Following Too Close Reminder", "Two steps, whether openpilot is engaged, on Always On Lateral, or off. Yellow: the gap stays under your setting for 2 seconds. Red: the gap drops under the red setting, or you're closing fast enough to hit in under 2.5 seconds. Accelerating hard toward the car ahead skips the wait. Alert only: it never steers, brakes or slows the car. Quiet with your turn signal on.", ""},
-    {"FollowWarningGap", "Yellow Below Gap", "Time gap to the car ahead that turns the reminder yellow. 1.0 s at 60 mph is about 88 ft.", ""},
-    {"FollowWarningRedGap", "Red Below Gap", "Time gap that turns it red. 0.6 s at 60 mph is about 53 ft.", ""},
-    {"FollowWarningSpeed", "Warn Above Speed", "Only warn above this speed, so stop-and-go traffic doesn't set it off.", ""},
     {"SmartEcoScoreUI", "Show Eco Score and Range", "Show a live 0-10 efficiency score and 'range at this pace' on the driving screen.", ""},
     {"SmartEcoLimiter", "Power Ceiling", "When openpilot controls your speed, limit acceleration to each speed band's kW ceiling below. The gas pedal always overrides it and braking is never limited.", ""},
     {"SmartEcoGlide", "Highway Glide", "Above 35 mph with openpilot controlling speed: coast down hills and let speed float a little above your set speed instead of regenerating, then glide back down. Turns off for close or slower lead cars and curves.", ""},
     {"SmartEcoGlideBand", "Glide Above Set Speed", "How far above your set speed Highway Glide may let the car coast before regen holds it.", ""},
     {"SmartEcoSagBand", "Allowed Slowdown On Climbs", "How far below your set speed the Power Ceiling may let the car slow on a hill before it holds speed anyway.", ""},
-    {"SmartEco12VDrain", "12V Parked Drop Warning", "Once a day, on the first long park with nothing charging, the comma stays on for 2 hours (past your shutdown timer) to test the 12V: once at 30 minutes, when the Bolt is asleep, and again 90 minutes later. Warn if it dropped more than this per 2 hours. A healthy rested battery barely moves. Plugging in cancels that day's test.", ""},
+
+    {"FollowWarning", "Following Too Close Reminder", "Two steps, whether openpilot is engaged, on Always On Lateral, or off. Yellow: the gap stays under your setting for 2 seconds. Red: the gap drops under the red setting, or you're closing fast enough to hit in under 2.5 seconds. Accelerating hard toward the car ahead skips the wait. Alert only: it never steers, brakes or slows the car. Quiet with your turn signal on.", "../frogpilot/assets/toggle_icons/icon_custom.png"},
+    {"FollowWarningGap", "Yellow Below Gap", "Time gap to the car ahead that turns the reminder yellow. 1.0 s at 60 mph is about 88 ft.", ""},
+    {"FollowWarningRedGap", "Red Below Gap", "Time gap that turns it red. 0.6 s at 60 mph is about 53 ft.", ""},
+    {"FollowWarningSpeed", "Warn Above Speed", "Only warn above this speed, so stop-and-go traffic doesn't set it off.", ""},
+
+    {"Battery12VMonitor", "12V Battery Monitor", "Watches the 12V battery while parked: low, cold, repeated-low and parked-drain warnings, a once-a-day 2-hour parked test, and a history of each battery. Off: no warnings, and the comma always shuts off on your normal timer.", "../frogpilot/assets/toggle_icons/icon_custom.png"},
     {"SmartEco12VWarn", "12V Low Warning Below", "One 12V reading is taken per park, right before the comma shuts itself off (your Device Shutdown Timer sets how long the battery has rested). Warn when it drops below this. Lead-acid: ~12.2 V is about half charged. LiFePO4 rests higher (~13.2 V).", ""},
+    {"SmartEco12VDrain", "12V Parked Drop Warning", "Once a day, on the first long park with nothing charging, the comma stays on for 2 hours (past your shutdown timer) to test the 12V: once at 30 minutes, when the Bolt is asleep, and again 90 minutes later. Warn if it dropped more than this per 2 hours. A healthy rested battery barely moves. Plugging in cancels that day's test.", ""},
 
     {"SpeedLimitController", "Speed Limit Controller", "Automatically adjust vehicle speed to match speed limits using 'Open Street Map's, 'Navigate On openpilot', or your car's dashboard (TSS2 Toyotas only).", "../assets/offroad/icon_speed_limit.png"},
     {"SLCControls", "Controls Settings", "Manage settings for the controls.", ""},
@@ -477,19 +480,37 @@ FrogPilotControlsPanel::FrogPilotControlsPanel(SettingsWindow *parent) : FrogPil
         for (FrogPilotDualParamControl *row : smartEcoBandRows) {
           row->setVisible(true);
         }
-        newBatteryButton->setVisible(true);
       });
       toggle = smartEcoToggle;
+    } else if (param == "FollowWarning") {
+      FrogPilotParamManageControl *followToggle = new FrogPilotParamManageControl(param, title, desc, icon, this);
+      QObject::connect(followToggle, &FrogPilotParamManageControl::manageButtonClicked, this, [this]() {
+        parentToggleClicked();
+        for (auto &[follow_key, follow_toggle] : toggles) {
+          follow_toggle->setVisible(followWarningKeys.find(follow_key.c_str()) != followWarningKeys.end());
+        }
+      });
+      toggle = followToggle;
+    } else if (param == "Battery12VMonitor") {
+      FrogPilotParamManageControl *batteryToggle = new FrogPilotParamManageControl(param, title, desc, icon, this);
+      QObject::connect(batteryToggle, &FrogPilotParamManageControl::manageButtonClicked, this, [this]() {
+        parentToggleClicked();
+        for (auto &[battery_key, battery_toggle] : toggles) {
+          battery_toggle->setVisible(battery12VKeys.find(battery_key.c_str()) != battery12VKeys.end());
+        }
+        newBatteryButton->setVisible(true);
+      });
+      toggle = batteryToggle;
     } else if (param == "FollowWarningGap" || param == "FollowWarningRedGap") {
       toggle = new FrogPilotParamValueControl(param, title, desc, icon, 0.5, 2.0, std::map<int, QString>(), this, false, " s", 1, 0.1);
     } else if (param == "FollowWarningSpeed") {
       toggle = new FrogPilotParamValueControl(param, title, desc, icon, 0, 60, std::map<int, QString>(), this, false, " mph");
     } else if (param == "SmartEco12VDrain") {
       toggle = new FrogPilotParamValueControl(param, title, desc, icon, 0.05, 0.30, std::map<int, QString>(), this, false, " V", 1, 0.01);
-    } else if (param == "SmartEcoGlideBand" || param == "SmartEcoSagBand") {
+    } else if (param == "SmartEcoGlideBand") {
       toggle = new FrogPilotParamValueControl(param, title, desc, icon, 1, 5, std::map<int, QString>(), this, false, " mph");
-    } else if (param == "SmartEco12VWarn") {
-      // Per-band kW ranges (min / max) shown above the 12V setting
+    } else if (param == "SmartEcoSagBand") {
+      // Per-band kW ranges (min / max), listed in the Smart Eco section
       const std::vector<std::pair<int, QString>> bandNames {
         {1, "Residential 0-20"}, {2, "Local 20-40"}, {3, "County 40-55"}, {4, "Highway 55-70"}, {5, "High-speed 70+"}};
       for (const auto &[i, name] : bandNames) {
@@ -505,6 +526,8 @@ FrogPilotControlsPanel::FrogPilotControlsPanel(SettingsWindow *parent) : FrogPil
         addItem(row);
         smartEcoBandRows.push_back(row);
       }
+      toggle = new FrogPilotParamValueControl(param, title, desc, icon, 1, 5, std::map<int, QString>(), this, false, " mph");
+    } else if (param == "SmartEco12VWarn") {
       toggle = new FrogPilotParamValueControl(param, title, desc, icon, 11.5, 13.5, std::map<int, QString>(), this, false, " V", 1, 0.1);
 
       // Smart Eco fork: record a new 12V battery (starts a new entry in the battery history)
@@ -763,6 +786,8 @@ void FrogPilotControlsPanel::hideSubToggles() {
   for (auto &[key, toggle] : toggles) {
     bool subToggles = aolKeys.find(key.c_str()) != aolKeys.end() ||
                       smartEcoKeys.find(key.c_str()) != smartEcoKeys.end() ||
+                      followWarningKeys.find(key.c_str()) != followWarningKeys.end() ||
+                      battery12VKeys.find(key.c_str()) != battery12VKeys.end() ||
                       conditionalExperimentalKeys.find(key.c_str()) != conditionalExperimentalKeys.end() ||
                       experimentalModeActivationKeys.find(key.c_str()) != experimentalModeActivationKeys.end() ||
                       fireTheBabysitterKeys.find(key.c_str()) != fireTheBabysitterKeys.end() ||

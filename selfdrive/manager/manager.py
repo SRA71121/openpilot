@@ -92,6 +92,7 @@ def manager_init() -> None:
     ("AccelerationPath", "1"),
     ("AccelerationProfile", "2"),
     ("SmartEcoCruise", "1"),
+    ("Battery12VMonitor", "1"),
     ("CameraAutoExposure", "0"),
     ("FollowWarning", "1"),
     ("FollowWarningGap", "1.0"),

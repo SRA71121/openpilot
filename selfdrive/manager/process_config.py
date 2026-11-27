@@ -57,8 +57,8 @@ def osm(started, params, params_memory, CP: car.CarParams) -> bool:
 def smart_eco(started, params, params_memory, CP: car.CarParams) -> bool:
   return started and params.get_bool("SmartEcoCruise")
 
-def smart_eco_always(started, params, params_memory, CP: car.CarParams) -> bool:
-  return params.get_bool("SmartEcoCruise")
+def battery_12v_monitor(started, params, params_memory, CP: car.CarParams) -> bool:
+  return params.get_bool("Battery12VMonitor")
 
 procs = [
   DaemonProcess("manage_athenad", "selfdrive.athena.manage_athenad", "AthenadPid"),
@@ -111,7 +111,7 @@ procs = [
   PythonProcess("frogpilot_process", "selfdrive.frogpilot.functions.frogpilot_process", always_run),
   PythonProcess("mapd", "selfdrive.frogpilot.functions.mapd", osm),
   PythonProcess("smart_ecod", "selfdrive.frogpilot.functions.smart_ecod", smart_eco),
-  PythonProcess("battery12vd", "selfdrive.frogpilot.functions.battery12vd", smart_eco_always),
+  PythonProcess("battery12vd", "selfdrive.frogpilot.functions.battery12vd", battery_12v_monitor),
 ]
 
 managed_processes = {p.name: p for p in procs}

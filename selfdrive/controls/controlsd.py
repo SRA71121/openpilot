@@ -656,7 +656,7 @@ class Controls:
     # Smart Eco fork: 12V banner once per drive, ~8 s after start (after battery12vd records the last park)
     if not self.battery_banner_checked and self.sm.frame * DT_CTRL >= 8.0:
       self.battery_banner_checked = True
-      battery_status = self.params.get_int("SmartEco12VStatus") if self.params.get_bool("SmartEcoCruise") else 0
+      battery_status = self.params.get_int("SmartEco12VStatus") if self.params.get_bool("Battery12VMonitor") else 0
       low_status, draining = battery_status % 10, battery_status >= 10
       if low_status == 2:
         self.events.add(EventName.battery12VRepeat)

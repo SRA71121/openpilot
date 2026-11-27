@@ -220,6 +220,7 @@ std::unordered_map<std::string, uint32_t> keys = {
     {"AccelerationPath", PERSISTENT},
     {"AccelerationProfile", PERSISTENT},
     {"SmartEcoCruise", PERSISTENT},
+    {"Battery12VMonitor", PERSISTENT},
     {"CameraAutoExposure", PERSISTENT},
     {"CameraSensor", PERSISTENT},
     {"CarCodesRequest", PERSISTENT},

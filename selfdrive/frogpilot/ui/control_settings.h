@@ -49,7 +49,9 @@ private:
   std::set<QString> longitudinalTuneKeys = {"AccelerationProfile", "DecelerationProfile", "AggressiveAcceleration", "SmoothBraking", "StoppingDistance"};
   std::set<QString> mtscKeys = {"DisableMTSCSmoothing", "MTSCAggressiveness", "MTSCCurvatureCheck", "MTSCLimit"};
   std::set<QString> qolKeys = {"DisableOnroadUploads", "HigherBitrate", "NavChill", "PauseLateralOnSignal", "ReverseCruise", "SetSpeedOffset"};
-  std::set<QString> smartEcoKeys = {"FollowWarning", "FollowWarningGap", "FollowWarningRedGap", "FollowWarningSpeed", "SmartEcoScoreUI", "SmartEcoLimiter", "SmartEcoGlide", "SmartEcoGlideBand", "SmartEcoSagBand", "SmartEco12VDrain", "SmartEco12VWarn"};
+  std::set<QString> smartEcoKeys = {"SmartEcoScoreUI", "SmartEcoLimiter", "SmartEcoGlide", "SmartEcoGlideBand", "SmartEcoSagBand"};
+  std::set<QString> followWarningKeys = {"FollowWarningGap", "FollowWarningRedGap", "FollowWarningSpeed"};
+  std::set<QString> battery12VKeys = {"SmartEco12VWarn", "SmartEco12VDrain"};
   std::vector<FrogPilotDualParamControl*> smartEcoBandRows;
   ButtonControl *newBatteryButton;
   std::set<QString> speedLimitControllerKeys = {"SLCControls", "SLCQOL", "SLCVisuals"};

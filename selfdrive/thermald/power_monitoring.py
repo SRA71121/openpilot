@@ -125,7 +125,8 @@ class PowerMonitoring:
                             offroad_time > VOLTAGE_SHUTDOWN_MIN_OFFROAD_TIME_S)
     # Smart Eco fork: battery12vd may hold the shutdown TIMER (never the low-voltage or capacity checks)
     # while its once-a-day 2-hour 12V test finishes; capped at 3 hours after parking regardless
-    battery_test_hold = offroad_time < 3 * 3600 and self.params_memory.get_bool("SmartEco12VHold")
+    battery_test_hold = offroad_time < 3 * 3600 and self.params_memory.get_bool("SmartEco12VHold") and \
+                        self.params.get_bool("Battery12VMonitor")
     should_shutdown |= offroad_time > self.device_shutdown_time and not battery_test_hold
     should_shutdown |= low_voltage_shutdown
     should_shutdown |= (self.car_battery_capacity_uWh <= 0)

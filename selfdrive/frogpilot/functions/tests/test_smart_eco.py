@@ -84,6 +84,14 @@ class TestPowerModel(unittest.TestCase):
     up = self.m.battery_power_kw(mph(50), 0.0, math.atan(0.05))
     self.assertGreater(up - flat, 15)  # 5% grade at 50 mph is a big load
 
+  def test_never_beyond_car_limits(self):
+    # Hard on-ramp launch uphill: physics says more than the Bolt can make; estimate stops at its rating
+    aux = self.m.aux_kw
+    self.assertAlmostEqual(self.m.battery_power_kw(mph(50), 3.4, math.atan(0.03)) - aux, 150.0, places=3)
+    self.assertAlmostEqual(self.m.battery_power_kw(mph(70), -4.0) - aux, -70.0, places=3)
+    # Normal cruising is untouched by the caps
+    self.assertLess(self.m.battery_power_kw(mph(55), 0.0), 20)
+
   def test_accel_for_power_roundtrip(self):
     v = mph(45)
     a = self.m.accel_for_power(16.0, v)

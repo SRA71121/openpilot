@@ -46,6 +46,8 @@ DEFAULT_MODEL = {
   "aux_kw": 0.4,             # baseline accessory load (12V, pumps); HVAC not included
   "measured_current_sign": 0,  # 0 = learn automatically; 1 or -1 to force
   "usable_kwh": 65.0,        # for "range at this pace"
+  "max_drive_kw": 150.0,     # Bolt motor rating; the estimate never claims more than the car can make
+  "max_regen_kw": 70.0,      # Bolt peak regen
 }
 
 
@@ -166,6 +168,8 @@ class PowerModel:
     self.eta_d = min(max(float(model["drive_efficiency"]), 0.5), 1.0)
     self.eta_r = min(max(float(model["regen_efficiency"]), 0.0), 1.0)
     self.aux_kw = float(model["aux_kw"])
+    self.max_drive_kw = float(model.get("max_drive_kw") or DEFAULT_MODEL["max_drive_kw"])
+    self.max_regen_kw = float(model.get("max_regen_kw") or DEFAULT_MODEL["max_regen_kw"])
 
   def road_load_w(self, v: float, pitch: float = 0.0) -> float:
     """Steady-state tractive power at the wheels (W). pitch in radians, nose-up positive."""
@@ -181,7 +185,8 @@ class PowerModel:
   def battery_power_kw(self, v: float, a: float, pitch: float = 0.0) -> float:
     pw = self.wheel_power_w(v, a, pitch)
     pb = pw / self.eta_d if pw >= 0 else pw * self.eta_r
-    return pb / 1000.0 + self.aux_kw
+    pb_kw = min(max(pb / 1000.0, -self.max_regen_kw), self.max_drive_kw)
+    return pb_kw + self.aux_kw
 
   def accel_for_power(self, target_kw: float, v: float, pitch: float = 0.0) -> float:
     """Acceleration (m/s^2) that would draw target_kw from the battery at speed v. Recommendation only."""

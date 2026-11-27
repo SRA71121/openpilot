@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="initial-scale=1, width=device-width">
+<title>Drive Logs</title>
+<style>
+  /* Self-contained on purpose: works on the comma hotspot with no internet */
+  :root { --bg:#111418; --card:#1b2027; --line:#2c333d; --fg:#e8ecf1; --dim:#9aa5b1; --good:#6FA8FF; }
+  * { box-sizing:border-box; }
+  body { margin:0; font:15px/1.4 -apple-system,Segoe UI,Roboto,sans-serif; background:var(--bg); color:var(--fg); }
+  header { padding:14px 16px; display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--line); }
+  header a { color:var(--dim); text-decoration:none; font-size:14px; }
+  h1 { font-size:19px; margin:0; } h2 { font-size:16px; margin:0 0 6px; }
+  main { padding:12px; max-width:900px; margin:0 auto; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:14px; margin-bottom:14px; }
+  a.btn { display:inline-block; background:var(--good); color:#0b1220; border-radius:8px; padding:8px 12px; font-weight:600; text-decoration:none; margin:4px 0; }
+  table { width:100%; border-collapse:collapse; font-size:14px; margin-top:8px; }
+  td { padding:6px 4px; border-bottom:1px solid var(--line); }
+  td a { color:var(--good); }
+  .dim { color:var(--dim); font-size:12px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Drive Logs</h1>
+  <a href="/">&larr; Fleet Manager</a>
+</header>
+<main>
+  <p class="dim">Download straight off the comma; no comma connect needed. One drive's qlogs (one file) is what Claude needs. Each drive is split into 1-minute segments.</p>
+  {% for route, segs in routes.items() %}
+  <div class="card">
+    <h2>{{ route }}</h2>
+    <div class="dim">{{ segs|length }} segment{{ 's' if segs|length != 1 }} (about {{ segs|length }} min)</div>
+    <a class="btn" href="/logs/route/{{ route }}.zip">Download this drive's qlogs (one file)</a>
+    <details><summary class="dim">Single segments and full rlogs</summary>
+      <table>
+        {% for num, name, files in segs %}
+        <tr><td>Segment {{ num }}</td>
+          <td>{% for f, size in files.items() %}<a href="/logs/file/{{ name }}/{{ f }}">{{ f }}</a> <span class="dim">{{ '%.1f' % (size / 1048576) }} MB</span>{% if not loop.last %} &middot; {% endif %}{% endfor %}</td></tr>
+        {% endfor %}
+      </table>
+    </details>
+  </div>
+  {% else %}
+  <div class="card dim">No drive logs on the comma. If Disable Logging was on during a drive, that drive wasn't recorded.</div>
+  {% endfor %}
+</main>
+</body>
+</html>

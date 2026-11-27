@@ -431,6 +431,71 @@ def smart_eco_export():
                   "battery_12v": Battery12VLog.load().to_dict()})
 
 
+# ---- Drive logs: download qlogs/rlogs straight off the comma (no comma connect needed) ----
+import io
+import re
+import zipfile
+
+SEGMENT_RE = re.compile(r"^[0-9A-Za-z_-]+--\d+$")
+LOG_FILES = ("qlog", "qlog.bz2", "qlog.zst", "rlog", "rlog.bz2", "rlog.zst")
+
+
+def _log_segments():
+  """{route: [(seg_num, segment, {file: size})]}, newest route first."""
+  routes = {}
+  root = Paths.log_root()
+  try:
+    names = os.listdir(root)
+  except OSError:
+    names = []
+  for name in names:
+    if not SEGMENT_RE.match(name):
+      continue
+    files = {}
+    for f in LOG_FILES:
+      fp = os.path.join(root, name, f)
+      if os.path.isfile(fp):
+        files[f] = os.path.getsize(fp)
+    if not files:
+      continue
+    route, _, num = name.rpartition("--")
+    routes.setdefault(route, []).append((int(num), name, files))
+  for segs in routes.values():
+    segs.sort()
+  return dict(sorted(routes.items(), reverse=True))
+
+
+@app.route("/logs", methods=["GET"])
+def logs_page():
+  return render_template("logs.html", routes=_log_segments())
+
+
+@app.route("/logs/file/<segment>/<file_name>", methods=["GET"])
+def logs_file(segment, file_name):
+  if not SEGMENT_RE.match(segment) or file_name not in LOG_FILES:
+    return "not found", 404
+  resp = send_from_directory(os.path.join(Paths.log_root(), segment), file_name)
+  resp.headers["Content-Disposition"] = f"attachment; filename={segment}--{file_name}"
+  return resp
+
+
+@app.route("/logs/route/<route>.zip", methods=["GET"])
+def logs_route_zip(route):
+  """All of one drive's qlogs in a single file (small: about 1 MB per minute)."""
+  segs = _log_segments().get(route)
+  if not segs:
+    return "not found", 404
+  buf = io.BytesIO()
+  with zipfile.ZipFile(buf, "w", zipfile.ZIP_STORED) as z:
+    for _, name, files in segs:
+      for f in ("qlog", "qlog.bz2", "qlog.zst"):
+        if f in files:
+          z.write(os.path.join(Paths.log_root(), name, f), arcname=f"{name}--{f}")
+  buf.seek(0)
+  return Response(buf.getvalue(), mimetype="application/zip",
+                  headers={"Content-Disposition": f"attachment; filename={route}--qlogs.zip"})
+
+
 # ---- Car Tools: trouble codes and camera info --------------------------------
 from openpilot.selfdrive.frogpilot.functions import car_codes
 

@@ -132,14 +132,14 @@ const QColor bg_colors [] = {
   [STATUS_ENGAGED] = QColor(0xB8, 0xC2, 0xCC, 0xf1),          // soft silver: fully engaged
 
   // FrogPilot colors
-  [STATUS_LATERAL_ACTIVE] = QColor(0x00, 0x47, 0xAB, 0xf1),   // cobalt blue: Always On Lateral
+  [STATUS_LATERAL_ACTIVE] = QColor(0x0D, 0x7E, 0xCB, 0xf1),   // frog blue: Always On Lateral
 };
 
 static std::map<cereal::ControlsState::AlertStatus, QColor> alert_colors = {
   {cereal::ControlsState::AlertStatus::NORMAL, QColor(0x15, 0x15, 0x15, 0xf1)},
   {cereal::ControlsState::AlertStatus::USER_PROMPT, QColor(0xDA, 0x6F, 0x25, 0xf1)},
   {cereal::ControlsState::AlertStatus::CRITICAL, QColor(0xC9, 0x22, 0x31, 0xf1)},
-  {cereal::ControlsState::AlertStatus::FROGPILOT, QColor(0x00, 0x47, 0xAB, 0xf1)},
+  {cereal::ControlsState::AlertStatus::FROGPILOT, QColor(0x0D, 0x7E, 0xCB, 0xf1)},
   {cereal::ControlsState::AlertStatus::CAUTION, QColor(0xC8, 0x9A, 0x00, 0xf1)},
 };
 
@@ -259,6 +259,8 @@ typedef struct UIScene {
   float eco_score = -1.0f;
   float eco_trip_score = -1.0f;
   float eco_pace_range = 0.0f;
+  float eco_drive_kw = -999.0f;
+  bool eco_stopped = true;
   int camera_view;
   int conditional_speed;
   int conditional_speed_lead;

@@ -883,12 +883,12 @@ void AnnotatedCameraWidget::drawLaneLines(QPainter &painter, const UIState *s) {
   }
 
   // Stephen's mode colors (override themes/acceleration coloring):
-  //   Always On Lateral = cobalt blue, fully engaged = soft silver, off = faint neutral
+  //   Always On Lateral = frog blue (from the startup frog), fully engaged = soft silver, off = faint neutral
   const UIStatus mode = uiState()->status;
-  const QColor modeFill = mode == STATUS_LATERAL_ACTIVE ? QColor(0x00, 0x47, 0xAB)
+  const QColor modeFill = mode == STATUS_LATERAL_ACTIVE ? QColor(0x0D, 0x7E, 0xCB)
                         : (mode == STATUS_ENGAGED || mode == STATUS_OVERRIDE) ? QColor(0xB8, 0xC2, 0xCC)
                         : QColor(0x80, 0x80, 0x80);
-  const QColor modeEdge = mode == STATUS_LATERAL_ACTIVE ? QColor(0x2F, 0x6F, 0xD6)
+  const QColor modeEdge = mode == STATUS_LATERAL_ACTIVE ? QColor(0x4F, 0xA6, 0xE6)
                         : (mode == STATUS_ENGAGED || mode == STATUS_OVERRIDE) ? QColor(0xD8, 0xDE, 0xE4)
                         : QColor(0x90, 0x90, 0x90);
   const bool modeOff = !(mode == STATUS_LATERAL_ACTIVE || mode == STATUS_ENGAGED || mode == STATUS_OVERRIDE);
@@ -1667,13 +1667,13 @@ void Compass::paintEvent(QPaintEvent *event) {
   }
 }
 
-// Smart Eco: live 0-10 score, trip average, and full-pack range at the current pace.
-// Night-friendly colors: no bright green; cobalt-ish for good, soft white, muted red for poor.
+// Smart Eco: live 0-10 score, live kW, trip average, and full-pack range at the current pace.
+// Score colors: green 8+, yellow 5-8, red under 5. Stopped: reads 0.0 in neutral gray.
 void AnnotatedCameraWidget::drawEcoScore(QPainter &p) {
   const UIScene &s = uiState()->scene;
   p.save();
 
-  const int w = 250, h = 158;
+  const int w = 250, h = 190;
   const int x = rightHandDrive ? width() - UI_BORDER_SIZE - 30 - w : UI_BORDER_SIZE + 30;
   const int y = height() / 2 - h / 2;
   QRect box(x, y, w, h);
@@ -1682,10 +1682,15 @@ void AnnotatedCameraWidget::drawEcoScore(QPainter &p) {
   p.setBrush(QColor(0, 0, 0, 140));
   p.drawRoundedRect(box, 24, 24);
 
-  const float score = s.eco_score;
-  QColor scoreColor = score >= 8.0f ? QColor(0x7A, 0xA7, 0xFF) : score >= 5.0f ? QColor(0xE6, 0xE6, 0xE6) : QColor(0xE0, 0x7A, 0x7A);
+  const QColor dim(0xB0, 0xB8, 0xC0);
+  const bool stopped = s.eco_stopped;
+  const float score = stopped ? 0.0f : s.eco_score;
+  QColor scoreColor = stopped ? dim
+                    : score >= 8.0f ? QColor(0x4C, 0xC3, 0x6A)
+                    : score >= 5.0f ? QColor(0xE6, 0xC2, 0x29)
+                    : QColor(0xE0, 0x64, 0x64);
 
-  p.setPen(QColor(0xB0, 0xB8, 0xC0));
+  p.setPen(dim);
   p.setFont(InterFont(30, QFont::DemiBold));
   p.drawText(QRect(x + 22, y + 14, w - 44, 34), Qt::AlignLeft | Qt::AlignVCenter, "ECO");
 
@@ -1693,12 +1698,14 @@ void AnnotatedCameraWidget::drawEcoScore(QPainter &p) {
   p.setFont(InterFont(66, QFont::Bold));
   p.drawText(QRect(x + 22, y + 6, w - 44, 80), Qt::AlignRight | Qt::AlignVCenter, QString::number(score, 'f', 1));
 
-  p.setPen(QColor(0xB0, 0xB8, 0xC0));
+  p.setPen(dim);
   p.setFont(InterFont(28));
+  QString kw = s.eco_drive_kw > -900.0f ? QString("%1 kW").arg(s.eco_drive_kw, 0, 'f', 1) : QString("-- kW");
+  p.drawText(QRect(x + 22, y + 84, w - 44, 32), Qt::AlignLeft | Qt::AlignVCenter, kw);
   QString trip = s.eco_trip_score >= 0 ? QString("trip %1").arg(s.eco_trip_score, 0, 'f', 1) : QString("trip --");
-  p.drawText(QRect(x + 22, y + 84, w - 44, 32), Qt::AlignLeft | Qt::AlignVCenter, trip);
+  p.drawText(QRect(x + 22, y + 116, w - 44, 32), Qt::AlignLeft | Qt::AlignVCenter, trip);
   QString pace = s.eco_pace_range > 0 ? QString("%1 mi pace").arg(std::min(s.eco_pace_range, 999.0f), 0, 'f', 0) : QString("-- mi pace");
-  p.drawText(QRect(x + 22, y + 116, w - 44, 32), Qt::AlignLeft | Qt::AlignVCenter, pace);
+  p.drawText(QRect(x + 22, y + 148, w - 44, 32), Qt::AlignLeft | Qt::AlignVCenter, pace);
 
   p.restore();
 }

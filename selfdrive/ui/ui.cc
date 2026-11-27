@@ -265,6 +265,11 @@ static void update_state(UIState *s) {
     scene.eco_score = eco.getEcoScore();
     scene.eco_trip_score = eco.getEcoTripScore();
     scene.eco_pace_range = eco.getPaceRangeMi();
+    scene.eco_drive_kw = eco.getDriveKw();
+  }
+  if (sm.updated("carState")) {
+    const float v_ego = sm["carState"].getCarState().getVEgo();
+    scene.eco_stopped = v_ego < (scene.eco_stopped ? 0.9f : 0.3f);  // ~2 mph to wake, ~0.7 mph to sleep
   }
   scene.eco_alive = sm.alive("smartEcoState");
   if (sm.updated("frogpilotPlan")) {

@@ -89,7 +89,8 @@ public:
   // Smart Eco fork: the March23 driver pins exposure to 100 lines and gain to 0x320 (early
   // bring-up values), so the road picture can't brighten at night. When true, the normal
   // auto-exposure result is written instead, as upstream openpilot 0.9.7 does.
-  bool auto_exposure = false;
+  // mutable: camerad holds sensors as const; this is set once right after the sensor is probed
+  mutable bool auto_exposure = false;
   OS04C10();
   std::vector<i2c_random_wr_payload> getExposureRegisters(int exposure_time, int new_exp_g, bool dc_gain_enabled) const override;
   float getExposureScore(float desired_ev, int exp_t, int exp_g_idx, float exp_gain, int gain_idx) const override;

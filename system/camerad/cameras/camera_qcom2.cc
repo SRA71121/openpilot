@@ -470,15 +470,15 @@ void CameraState::camera_open(MultiCameraState *multi_cam_state_, int camera_num
   // Smart Eco fork: report the sensor, and optionally enable OS04C10 auto exposure on the
   // road cameras only (driver monitoring camera keeps its existing fixed exposure)
   {
-    Params params;
+    Params eco_params;
     const char *sensor_name = ci->image_sensor == cereal::FrameData::ImageSensor::OS04C10 ? "OS04C10" :
                               ci->image_sensor == cereal::FrameData::ImageSensor::OX03C10 ? "OX03C10" :
                               ci->image_sensor == cereal::FrameData::ImageSensor::AR0231 ? "AR0231" : "unknown";
     if (this == &multi_cam_state->road_cam) {
-      params.putNonBlocking("CameraSensor", sensor_name);
+      eco_params.putNonBlocking("CameraSensor", sensor_name);
     }
     if (ci->image_sensor == cereal::FrameData::ImageSensor::OS04C10 && this != &multi_cam_state->driver_cam) {
-      static_cast<OS04C10*>(ci.get())->auto_exposure = params.getBool("CameraAutoExposure");
+      static_cast<const OS04C10*>(ci.get())->auto_exposure = eco_params.getBool("CameraAutoExposure");
     }
   }
 

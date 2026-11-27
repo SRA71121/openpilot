@@ -471,8 +471,8 @@ FrogPilotControlsPanel::FrogPilotControlsPanel(SettingsWindow *parent) : FrogPil
       FrogPilotParamManageControl *smartEcoToggle = new FrogPilotParamManageControl(param, title, desc, icon, this);
       QObject::connect(smartEcoToggle, &FrogPilotParamManageControl::manageButtonClicked, this, [this]() {
         parentToggleClicked();
-        for (auto &[key, toggle] : toggles) {
-          toggle->setVisible(smartEcoKeys.find(key.c_str()) != smartEcoKeys.end());
+        for (auto &[eco_key, eco_toggle] : toggles) {
+          eco_toggle->setVisible(smartEcoKeys.find(eco_key.c_str()) != smartEcoKeys.end());
         }
         for (FrogPilotDualParamControl *row : smartEcoBandRows) {
           row->setVisible(true);

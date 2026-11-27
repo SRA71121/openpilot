@@ -8,7 +8,7 @@ from openpilot.selfdrive.controls.lib.desire_helper import LANE_CHANGE_SPEED_MIN
 from openpilot.selfdrive.controls.lib.longitudinal_mpc_lib.long_mpc import STOP_DISTANCE
 from openpilot.selfdrive.controls.lib.longitudinal_planner import A_CRUISE_MIN, get_max_accel
 
-from openpilot.selfdrive.frogpilot.functions.frogpilot_functions import CRUISING_SPEED, FrogPilotFunctions
+from openpilot.selfdrive.frogpilot.functions.frogpilot_functions import CRUISING_SPEED, FrogPilotFunctions, eco_accel_scales
 
 from openpilot.selfdrive.frogpilot.functions.conditional_experimental_mode import ConditionalExperimentalMode
 from openpilot.selfdrive.frogpilot.functions.map_turn_speed_controller import MapTurnSpeedController
@@ -65,7 +65,7 @@ class FrogPilotPlanner:
 
     # Configure the acceleration profile
     if self.acceleration_profile == 1:
-      max_accel = self.fpf.get_max_accel_eco(v_ego)
+      max_accel = self.fpf.get_max_accel_eco(v_ego, *self.eco_scales)
     elif self.acceleration_profile in (2, 3):
       max_accel = self.fpf.get_max_accel_sport(v_ego)
     elif mpc.mode == 'acc':
@@ -255,6 +255,7 @@ class FrogPilotPlanner:
 
     longitudinal_tune = params.get_bool("LongitudinalTune")
     self.acceleration_profile = params.get_int("AccelerationProfile") if longitudinal_tune else 0
+    self.eco_scales = eco_accel_scales(params.get_int("EcoTime30"), params.get_int("EcoTime60"))
     self.deceleration_profile = params.get_int("DecelerationProfile") if longitudinal_tune else 0
     self.aggressive_acceleration = longitudinal_tune and params.get_bool("AggressiveAcceleration")
     self.increased_stopping_distance = params.get_int("StoppingDistance") * (1 if self.is_metric else CV.FOOT_TO_METER) if longitudinal_tune else 0

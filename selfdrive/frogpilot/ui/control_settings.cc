@@ -40,6 +40,8 @@ FrogPilotControlsPanel::FrogPilotControlsPanel(SettingsWindow *parent) : FrogPil
 
     {"LongitudinalTune", "Longitudinal Tuning", "Modify openpilot's acceleration and braking behavior.", "../frogpilot/assets/toggle_icons/icon_longitudinal_tune.png"},
     {"AccelerationProfile", "Acceleration Profile", "Change the acceleration rate to be either sporty or eco-friendly.\n\nEco: slow, gentle acceleration (about 20 seconds to 30 mph, about a minute to 60). Braking is not affected. Press the gas to merge faster.", ""},
+    {"EcoTime30", "  Eco: 0-30 mph Time", "When the Eco acceleration profile is selected: how many seconds openpilot takes to go from a stop to 30 mph. Higher is gentler. Braking is not affected.", ""},
+    {"EcoTime60", "  Eco: 30-60 mph Time", "When the Eco acceleration profile is selected: how many seconds openpilot takes to go from 30 to 60 mph (on-ramps and highway build-up). Higher is gentler.", ""},
     {"DecelerationProfile", "Deceleration Profile", "Change the deceleration rate to be either sporty or eco-friendly.", ""},
     {"AggressiveAcceleration", "Aggressive Acceleration With Lead", "Increase acceleration aggressiveness when following a lead vehicle from a stop.", ""},
     {"StoppingDistance", "Increase Stop Distance Behind Lead", "Increase the stopping distance for a more comfortable stop from lead vehicles.", ""},
@@ -279,6 +281,11 @@ FrogPilotControlsPanel::FrogPilotControlsPanel(SettingsWindow *parent) : FrogPil
       std::vector<QString> profileOptions{tr("Standard"), tr("Eco"), tr("Sport")};
       FrogPilotButtonParamControl *profileSelection = new FrogPilotButtonParamControl(param, title, desc, icon, profileOptions);
       toggle = profileSelection;
+    } else if (param == "EcoTime30") {
+      toggle = new FrogPilotParamValueControl(param, title, desc, icon, 8, 40, std::map<int, QString>(), this, false, " s");
+    } else if (param == "EcoTime60") {
+      toggle = new FrogPilotParamValueControl(param, title, desc, icon, 15, 90, std::map<int, QString>(), this, false, " s");
+
     } else if (param == "StoppingDistance") {
       toggle = new FrogPilotParamValueControl(param, title, desc, icon, 0, 10, std::map<int, QString>(), this, false, " feet");
 

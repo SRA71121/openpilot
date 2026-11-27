@@ -23,6 +23,31 @@ A_CRUISE_MIN_VALS_ECO = [-0.001, -0.010, -0.28, -0.56, -0.56]
 # FrogPilot's original "Eco" allowed 3.5 m/s^2 from a stop, harder than stock: [3.5, 3.2, 2.3, 2.0, 1.15, .80, .58, .36, .30, .091]
 A_CRUISE_MAX_VALS_ECO = [0.8, 0.8, 0.7, 0.6, 0.5, 0.42, 0.3, 0.22, 0.18, 0.08]
 
+# User-set Eco: the curve above is stretched/squeezed so 0-30 mph and 30-60 mph take the times the driver picked.
+ECO_SPLIT_MS = 30 * 0.44704
+ECO_TOP_MS = 60 * 0.44704
+ECO_BLEND_MS = 2.0  # blend the two scales over +/-2 m/s around 30 mph so there's no step
+
+
+def _eco_base_time(v_from, v_to, dv=0.05):
+  t, v = 0.0, v_from
+  while v < v_to:
+    t += dv / interp(v, A_CRUISE_MAX_BP_CUSTOM, A_CRUISE_MAX_VALS_ECO)
+    v += dv
+  return t
+
+
+ECO_BASE_T30 = _eco_base_time(0.0, ECO_SPLIT_MS)
+ECO_BASE_T60 = _eco_base_time(ECO_SPLIT_MS, ECO_TOP_MS)
+
+
+def eco_accel_scales(time_30_s, time_60_s):
+  """Multipliers for the Eco curve below and above 30 mph that hit the requested times."""
+  t30 = min(max(float(time_30_s or 20), 8.0), 40.0)
+  t60 = min(max(float(time_60_s or 45), 15.0), 90.0)
+  return ECO_BASE_T30 / t30, ECO_BASE_T60 / t60
+
+
 A_CRUISE_MIN_VALS_SPORT = [-0.50, -0.52, -0.55, -0.57, -0.60]
 A_CRUISE_MAX_VALS_SPORT = [3.5, 3.5, 3.3, 2.8, 1.5, 1.0, .75, .6, .38, .2]
 
@@ -58,8 +83,10 @@ class FrogPilotFunctions:
     return interp(v_ego, A_CRUISE_MIN_BP_CUSTOM, A_CRUISE_MIN_VALS_ECO)
 
   @staticmethod
-  def get_max_accel_eco(v_ego):
-    return interp(v_ego, A_CRUISE_MAX_BP_CUSTOM, A_CRUISE_MAX_VALS_ECO)
+  def get_max_accel_eco(v_ego, low_scale=1.0, high_scale=1.0):
+    w = interp(v_ego, [ECO_SPLIT_MS - ECO_BLEND_MS, ECO_SPLIT_MS + ECO_BLEND_MS], [0.0, 1.0])
+    scale = low_scale * (1.0 - w) + high_scale * w
+    return min(interp(v_ego, A_CRUISE_MAX_BP_CUSTOM, A_CRUISE_MAX_VALS_ECO) * scale, 2.0)
 
   @staticmethod
   def get_min_accel_sport(v_ego):

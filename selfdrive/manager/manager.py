@@ -285,6 +285,8 @@ def manager_init() -> None:
     ("SteerRatio", "0"),
     ("StockTune", "0"),
     ("StoppingDistance", "0"),
+    ("EcoTime30", "20"),
+    ("EcoTime60", "45"),
     ("TurnAggressiveness", "100"),
     ("TurnDesires", "0"),
     ("UnlimitedLength", "1"),

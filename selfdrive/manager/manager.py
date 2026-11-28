@@ -287,6 +287,7 @@ def manager_init() -> None:
     ("StoppingDistance", "0"),
     ("EcoTime30", "20"),
     ("NightMode", "1"),
+    ("BoltEV", "0"),
     ("NightBrightness", "15"),
     ("EcoTime60", "45"),
     ("TurnAggressiveness", "100"),

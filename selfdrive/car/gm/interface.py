@@ -271,6 +271,11 @@ class CarInterface(CarInterfaceBase):
     elif candidate in (CAR.BOLT_EUV, CAR.BOLT_CC):
       ret.mass = 1669.
       ret.wheelbase = 2.63779
+      # Smart Eco fork: 2022-23 Bolt EV (hatchback) shares this platform but is shorter and lighter.
+      # GM spec: wheelbase 2600 mm (EUV 2675), 2LT curb weight 3,624 lb.
+      if params.get_bool("BoltEV"):
+        ret.mass = 1644.
+        ret.wheelbase = 2.600
       ret.steerRatio = 16.8
       ret.centerToFront = ret.wheelbase * 0.4
       ret.tireStiffnessFactor = 1.0

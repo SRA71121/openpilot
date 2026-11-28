@@ -132,14 +132,14 @@ const QColor bg_colors [] = {
   [STATUS_ENGAGED] = QColor(0xB8, 0xC2, 0xCC, 0xf1),          // soft silver: fully engaged
 
   // FrogPilot colors
-  [STATUS_LATERAL_ACTIVE] = QColor(0x0A, 0x0A, 0xDA, 0xf1),   // Stephen's blue #0A0ADA: Always On Lateral
+  [STATUS_LATERAL_ACTIVE] = QColor(0x00, 0x00, 0x00, 0xf1),   // Stephen: black border for Always On Lateral
 };
 
 static std::map<cereal::ControlsState::AlertStatus, QColor> alert_colors = {
   {cereal::ControlsState::AlertStatus::NORMAL, QColor(0x15, 0x15, 0x15, 0xf1)},
   {cereal::ControlsState::AlertStatus::USER_PROMPT, QColor(0xDA, 0x6F, 0x25, 0xf1)},
   {cereal::ControlsState::AlertStatus::CRITICAL, QColor(0xC9, 0x22, 0x31, 0xf1)},
-  {cereal::ControlsState::AlertStatus::FROGPILOT, QColor(0x0A, 0x0A, 0xDA, 0xf1)},
+  {cereal::ControlsState::AlertStatus::FROGPILOT, QColor(0x0C, 0x3B, 0x97, 0xf1)},
   {cereal::ControlsState::AlertStatus::CAUTION, QColor(0xC8, 0x9A, 0x00, 0xf1)},
 };
 

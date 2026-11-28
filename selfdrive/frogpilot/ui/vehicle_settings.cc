@@ -122,6 +122,7 @@ FrogPilotVehiclesPanel::FrogPilotVehiclesPanel(SettingsWindow *parent) : FrogPil
     {"GasRegenCmd", "GM Truck Gas Tune", "Increase acceleration and smoothen brake to stop. For use on Silverado/Sierra only.", ""},
     {"LongPitch", "Long Pitch Compensation", "Reduce speed and acceleration error for greater passenger comfort and improved vehicle efficiency.", ""},
     {"LowerVolt", "Lower Volt Enable Speed", "Lower the Volt's minimum enable speed to enable openpilot at any speed.", ""},
+    {"BoltEV", "Bolt EV (Hatchback)", "Turn on if your car is a 2022-23 Chevy Bolt EV, not the longer Bolt EUV. Uses the EV's real wheelbase (2.60 m) and weight for the steering math. Both models share the same openpilot support.", ""},
 
     {"CrosstrekTorque", "Subaru Crosstrek Torque Increase", "Increases the maximum allowed torque for the Subaru Crosstrek.", ""},
 
@@ -167,7 +168,7 @@ FrogPilotVehiclesPanel::FrogPilotVehiclesPanel(SettingsWindow *parent) : FrogPil
     });
   }
 
-  std::set<std::string> rebootKeys = {"CrosstrekTorque", "GasRegenCmd", "LowerVolt"};
+  std::set<std::string> rebootKeys = {"BoltEV", "CrosstrekTorque", "GasRegenCmd", "LowerVolt"};
   for (const std::string &key : rebootKeys) {
     QObject::connect(toggles[key], &ToggleControl::toggleFlipped, [this]() {
       if (started) {

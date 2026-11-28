@@ -888,12 +888,12 @@ void AnnotatedCameraWidget::drawLaneLines(QPainter &painter, const UIState *s) {
   }
 
   // Stephen's mode colors (override themes/acceleration coloring):
-  //   Always On Lateral = Stephen's blue #0A0ADA, fully engaged = soft silver, off = faint neutral; path outline, lane lines, road edges black
+  //   Always On Lateral = Stephen's blue #0C3B97, fully engaged = soft silver, off = faint neutral; path outline, lane lines, road edges black
   const UIStatus mode = uiState()->status;
-  const QColor modeFill = mode == STATUS_LATERAL_ACTIVE ? QColor(0x0A, 0x0A, 0xDA)
+  const QColor modeFill = mode == STATUS_LATERAL_ACTIVE ? QColor(0x0C, 0x3B, 0x97)
                         : (mode == STATUS_ENGAGED || mode == STATUS_OVERRIDE) ? QColor(0xB8, 0xC2, 0xCC)
                         : QColor(0x80, 0x80, 0x80);
-  const QColor modeEdge = scene.night_mode ? QColor(0x0A, 0x0A, 0xDA) : QColor(0x00, 0x00, 0x00);  // Stephen: black outline; #0A0ADA at night
+  const QColor modeEdge = scene.night_mode ? QColor(0x0C, 0x3B, 0x97) : QColor(0x00, 0x00, 0x00);  // Stephen: black outline; #0C3B97 at night
   const bool modeOff = !(mode == STATUS_LATERAL_ACTIVE || mode == STATUS_ENGAGED || mode == STATUS_OVERRIDE);
   bg = QLinearGradient(0, height(), 0, 0);
   bg.setColorAt(0.0, QColor(modeFill.red(), modeFill.green(), modeFill.blue(), modeOff ? 30 : 140));

@@ -97,6 +97,11 @@ void OnroadWindow::updateState(const UIState &s) {
   }
 
   QColor bgColor = bg_colors[s.status];
+  // Smart Eco fork: the border is the frog's "body" while Always On Lateral steers -
+  // lime green by day (red-eyed tree frog), electric blue at night (blue poison dart frog).
+  if (s.status == STATUS_LATERAL_ACTIVE) {
+    bgColor = s.scene.night_mode ? QColor(ELECTRIC_BLUE.red(), ELECTRIC_BLUE.green(), ELECTRIC_BLUE.blue(), 0xf1) : DAY_FROG_GREEN;
+  }
   Alert alert = Alert::get(*(s.sm), s.scene.started_frame);
   alerts->updateAlert(alert);
 
@@ -656,6 +661,8 @@ void AnnotatedCameraWidget::drawHud(QPainter &p) {
       ), 6));
     } else if (scene.reverse_cruise) {
       p.setPen(QPen(QColor(0, 150, 255), 6));
+    } else if (!scene.night_mode) {
+      p.setPen(QPen(DAY_FROG_ORANGE, 6));  // day theme accent
     } else {
       p.setPen(QPen(whiteColor(75), 6));
     }
@@ -887,13 +894,13 @@ void AnnotatedCameraWidget::drawLaneLines(QPainter &painter, const UIState *s) {
   }
 
   // Stephen's mode colors (override themes/acceleration coloring):
-  //   Always On Lateral = Stephen's electric blue #1F6BFF, fully engaged = soft silver, off = faint neutral.
-  //   Path outline, lane lines, road edges black; at night the outline is a brighter electric blue.
+  //   Day (tree frog): Always On Lateral fill lime green, outline electric blue. Night: electric blue fill, black outline.
+  //   Fully engaged = soft silver, off = faint neutral. Lane lines and road edges black.
   const UIStatus mode = uiState()->status;
-  const QColor modeFill = mode == STATUS_LATERAL_ACTIVE ? QColor(0x1F, 0x6B, 0xFF)
+  const QColor modeFill = mode == STATUS_LATERAL_ACTIVE ? (scene.night_mode ? ELECTRIC_BLUE : DAY_FROG_GREEN)
                         : (mode == STATUS_ENGAGED || mode == STATUS_OVERRIDE) ? QColor(0xB8, 0xC2, 0xCC)
                         : QColor(0x80, 0x80, 0x80);
-  const QColor modeEdge = scene.night_mode ? QColor(0x5C, 0x95, 0xFF) : QColor(0x00, 0x00, 0x00);  // Stephen: black outline; electric blue glow at night
+  const QColor modeEdge = scene.night_mode ? QColor(0x00, 0x00, 0x00) : ELECTRIC_BLUE;  // day: tree-frog blue flanks; night: black edges on the blue path
   const bool modeOff = !(mode == STATUS_LATERAL_ACTIVE || mode == STATUS_ENGAGED || mode == STATUS_OVERRIDE);
   bg = QLinearGradient(0, height(), 0, 0);
   bg.setColorAt(0.0, QColor(modeFill.red(), modeFill.green(), modeFill.blue(), modeOff ? 30 : 140));
@@ -1084,12 +1091,14 @@ void AnnotatedCameraWidget::drawLead(QPainter &painter, const cereal::RadarState
   float g_yo = sz / 10;
 
   QPointF glow[] = {{x + (sz * 1.35) + g_xo, y + sz + g_yo}, {x, y - g_yo}, {x - (sz * 1.35) - g_xo, y + sz + g_yo}};
-  painter.setBrush(QColor(218, 202, 37, 255));
+  painter.setBrush(scene.night_mode ? QColor(218, 202, 37, 255) : QColor(255, 190, 110, 255));
   painter.drawPolygon(glow, std::size(glow));
 
   // chevron
   QPointF chevron[] = {{x + (sz * 1.25), y + sz}, {x, y}, {x - (sz * 1.25), y + sz}};
-  if (currentHolidayTheme != 0) {
+  if (!scene.night_mode) {
+    painter.setBrush(QColor(DAY_FROG_ORANGE.red(), DAY_FROG_ORANGE.green(), DAY_FROG_ORANGE.blue(), fillAlpha));  // day theme accent
+  } else if (currentHolidayTheme != 0) {
     painter.setBrush(std::get<3>(holidayThemeConfiguration[currentHolidayTheme]).begin()->second);
   } else if (customColors != 0) {
     painter.setBrush(std::get<3>(themeConfiguration[customColors]).begin()->second);
@@ -1681,7 +1690,7 @@ void AnnotatedCameraWidget::drawEcoScore(QPainter &p) {
   const int y = height() / 2 - h / 2;
   QRect box(x, y, w, h);
 
-  p.setPen(Qt::NoPen);
+  p.setPen(s.night_mode ? QPen(Qt::NoPen) : QPen(DAY_FROG_ORANGE, 4));  // day theme accent
   p.setBrush(QColor(0, 0, 0, 140));
   p.drawRoundedRect(box, 24, 24);
 

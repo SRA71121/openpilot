@@ -126,6 +126,11 @@ enum PrimeType {
   PURPLE = 5,
 };
 
+// Smart Eco fork theme colors: day = red-eyed tree frog, night = blue poison dart frog
+const QColor DAY_FROG_GREEN(0xA5, 0xD3, 0x2A, 0xf1);
+const QColor DAY_FROG_ORANGE(0xF7, 0x64, 0x01);
+const QColor ELECTRIC_BLUE(0x1F, 0x6B, 0xFF);
+
 const QColor bg_colors [] = {
   [STATUS_DISENGAGED] = QColor(0x17, 0x33, 0x49, 0xc8),
   [STATUS_OVERRIDE] = QColor(0x91, 0x9b, 0x95, 0xf1),

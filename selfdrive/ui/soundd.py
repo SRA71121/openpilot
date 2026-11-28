@@ -198,6 +198,9 @@ class Soundd:
       AudibleAlert.firefox: MAX_VOLUME,
       AudibleAlert.noice: MAX_VOLUME,
       AudibleAlert.uwu: MAX_VOLUME,
+      # Smart Eco fork: the following-too-close chimes always play at full volume, regardless of cabin noise
+      AudibleAlert.backOff: MAX_VOLUME,
+      AudibleAlert.backOffUrgent: MAX_VOLUME,
     }
 
     self.alert_volume_control = self.params.get_bool("AlertVolumeControl")

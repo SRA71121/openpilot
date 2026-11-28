@@ -1034,7 +1034,7 @@ EVENTS: Dict[int, Dict[str, Union[Alert, AlertCallbackType]]] = {
       "Back off",
       "Following too close",
       AlertStatus.caution, AlertSize.mid,
-      Priority.LOW, VisualAlert.none, AudibleAlert.backOff, .5),
+      Priority.LOW, VisualAlert.none, AudibleAlert.backOff, 5.),
   },
 
   EventName.battery12VLow: {
@@ -1074,7 +1074,7 @@ EVENTS: Dict[int, Dict[str, Union[Alert, AlertCallbackType]]] = {
       "BACK OFF",
       "Way too close. Chill out.",
       AlertStatus.critical, AlertSize.mid,
-      Priority.MID, VisualAlert.none, AudibleAlert.backOffUrgent, .5),
+      Priority.MID, VisualAlert.none, AudibleAlert.backOffUrgent, 5.),
   },
 
   EventName.laneChangeBlockedLoud: {

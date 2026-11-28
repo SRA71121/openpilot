@@ -6,7 +6,7 @@ from openpilot.common.realtime import DT_CTRL
 from opendbc.can.packer import CANPacker
 from openpilot.selfdrive.car import apply_driver_steer_torque_limits, create_gas_interceptor_command
 from openpilot.selfdrive.car.gm import gmcan
-from openpilot.selfdrive.car.gm.values import DBC, CanBus, CarControllerParams, CruiseButtons, GMFlags, CC_ONLY_CAR, EV_CAR, SDGM_CAR
+from openpilot.selfdrive.car.gm.values import CAR, DBC, CanBus, CarControllerParams, CruiseButtons, GMFlags, CC_ONLY_CAR, EV_CAR, SDGM_CAR
 from openpilot.selfdrive.controls.lib.drive_helpers import apply_deadzone
 from openpilot.selfdrive.controls.lib.vehicle_model import ACCELERATION_DUE_TO_GRAVITY
 
@@ -23,6 +23,13 @@ MIN_STEER_MSG_INTERVAL_MS = 15
 
 # Constants for pitch compensation
 PITCH_DEADZONE = 0.01  # [radians] 0.01 ≈ 1% grade
+
+# Smart Eco fork: Bolt road-load model (same numbers as Smart Eco's power estimate; matched the drive logs within ~0.03 m/s^2)
+BOLT_DRAG_CARS = {CAR.BOLT_EUV, CAR.BOLT_CC}
+BOLT_CDA = 0.72          # m^2 (Cd ~0.31 x 2.33 m^2)
+BOLT_CRR = 0.009
+BOLT_AIR_DENSITY = 1.0   # kg/m^3, Colorado Front Range
+BOLT_PAYLOAD_KG = 90.0
 BRAKE_PITCH_FACTOR_BP = [5., 10.]  # [m/s] smoothly revert to planned accel at low speeds
 BRAKE_PITCH_FACTOR_V = [0., 1.]  # [unitless in [0,1]]; don't touch
 
@@ -52,6 +59,15 @@ class CarController:
     # FrogPilot variables
     self.pitch = FirstOrderFilter(0., 0.09 * 4, DT_CTRL * 4)  # runs at 25 Hz
     self.accel_g = 0.0
+
+  def bolt_drag_ff(self, v_ego: float) -> float:
+    """Deceleration from aero drag + rolling resistance (m/s^2) for the Bolt EV/EUV, faded out near a stop."""
+    if self.CP.carFingerprint not in BOLT_DRAG_CARS:
+      return 0.0
+    m = self.CP.mass + BOLT_PAYLOAD_KG
+    v = max(v_ego, 0.0)
+    drag = (0.5 * BOLT_AIR_DENSITY * BOLT_CDA * v * v + BOLT_CRR * m * ACCELERATION_DUE_TO_GRAVITY) / m
+    return drag * interp(v, [0.0, 3.0], [0.0, 1.0])
 
   @staticmethod
   def calc_pedal_command(accel: float, long_active: bool) -> float:
@@ -137,20 +153,26 @@ class CarController:
           self.apply_brake = int(min(-100 * self.CP.stopAccel, self.params.MAX_BRAKE))
         else:
           # Normal operation
-          brake_accel = actuators.accel + self.accel_g * interp(CS.out.vEgo, BRAKE_PITCH_FACTOR_BP, BRAKE_PITCH_FACTOR_V)
+          # Smart Eco fork: road-load feedforward for the Bolt. GM's tables map 0 m/s^2 to coasting, so holding
+          # speed relied on the PID slowly winding up against drag - the speed sagged, then surged. Adding the
+          # drag/rolling deceleration here makes 0 mean "hold speed" (checked against the 2026-11-27 drive log).
+          drag_ff = self.bolt_drag_ff(CS.out.vEgo) if CC.longActive else 0.0
+          accel += drag_ff
+          cmd_accel = actuators.accel + drag_ff
+          brake_accel = cmd_accel + self.accel_g * interp(CS.out.vEgo, BRAKE_PITCH_FACTOR_BP, BRAKE_PITCH_FACTOR_V)
           if self.CP.carFingerprint in EV_CAR and frogpilot_variables.use_ev_tables:
             self.params.update_ev_gas_brake_threshold(CS.out.vEgo)
             if frogpilot_variables.sport_plus:
-              self.apply_gas = int(round(interp(accel if frogpilot_variables.long_pitch else actuators.accel, self.params.EV_GAS_LOOKUP_BP_PLUS, self.params.GAS_LOOKUP_V_PLUS)))
+              self.apply_gas = int(round(interp(accel if frogpilot_variables.long_pitch else cmd_accel, self.params.EV_GAS_LOOKUP_BP_PLUS, self.params.GAS_LOOKUP_V_PLUS)))
             else:
-              self.apply_gas = int(round(interp(accel if frogpilot_variables.long_pitch else actuators.accel, self.params.EV_GAS_LOOKUP_BP, self.params.GAS_LOOKUP_V)))
-            self.apply_brake = int(round(interp(brake_accel if frogpilot_variables.long_pitch else actuators.accel, self.params.EV_BRAKE_LOOKUP_BP, self.params.BRAKE_LOOKUP_V)))
+              self.apply_gas = int(round(interp(accel if frogpilot_variables.long_pitch else cmd_accel, self.params.EV_GAS_LOOKUP_BP, self.params.GAS_LOOKUP_V)))
+            self.apply_brake = int(round(interp(brake_accel if frogpilot_variables.long_pitch else cmd_accel, self.params.EV_BRAKE_LOOKUP_BP, self.params.BRAKE_LOOKUP_V)))
           else:
             if frogpilot_variables.sport_plus:
-              self.apply_gas = int(round(interp(accel if frogpilot_variables.long_pitch else actuators.accel, self.params.GAS_LOOKUP_BP_PLUS, self.params.GAS_LOOKUP_V_PLUS)))
+              self.apply_gas = int(round(interp(accel if frogpilot_variables.long_pitch else cmd_accel, self.params.GAS_LOOKUP_BP_PLUS, self.params.GAS_LOOKUP_V_PLUS)))
             else:
-              self.apply_gas = int(round(interp(accel if frogpilot_variables.long_pitch else actuators.accel, self.params.GAS_LOOKUP_BP, self.params.GAS_LOOKUP_V)))
-            self.apply_brake = int(round(interp(brake_accel if frogpilot_variables.long_pitch else actuators.accel, self.params.BRAKE_LOOKUP_BP, self.params.BRAKE_LOOKUP_V)))
+              self.apply_gas = int(round(interp(accel if frogpilot_variables.long_pitch else cmd_accel, self.params.GAS_LOOKUP_BP, self.params.GAS_LOOKUP_V)))
+            self.apply_brake = int(round(interp(brake_accel if frogpilot_variables.long_pitch else cmd_accel, self.params.BRAKE_LOOKUP_BP, self.params.BRAKE_LOOKUP_V)))
           # Don't allow any gas above inactive regen while stopping
           # FIXME: brakes aren't applied immediately when enabling at a stop
           if stopping:

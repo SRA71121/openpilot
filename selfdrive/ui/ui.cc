@@ -312,14 +312,16 @@ static void update_state(UIState *s) {
   scene.started = sm["deviceState"].getDeviceState().getStarted() && scene.ignition;
 
   // Smart Eco fork: Night Mode from the camera light sensor (0 dark .. 100 bright).
-  // Needs 5 s past the threshold to switch either way so tunnels, overpasses and streetlights don't flicker it.
+  // Thresholds from the 2026-11-27 dusk drive (OX03C10): overcast daytime read ~98-99, the Bolt's own dash dimmed
+  // around 96-98, full dusk was ~93. Needs 30 s past the threshold to switch either way so tunnels, overpasses and
+  // streetlights don't flicker it.
   {
-    constexpr float NIGHT_ENTER = 15.0f, NIGHT_EXIT = 30.0f;
+    constexpr float NIGHT_ENTER = 97.0f, NIGHT_EXIT = 98.0f;
     static int night_frames = 0;
     if (scene.night_mode_enabled && scene.started) {
       const bool past = scene.night_mode ? scene.light_sensor > NIGHT_EXIT : scene.light_sensor < NIGHT_ENTER;
       night_frames = past ? night_frames + 1 : 0;
-      if (night_frames > 5 * UI_FREQ) {
+      if (night_frames > 30 * UI_FREQ) {
         scene.night_mode = !scene.night_mode;
         night_frames = 0;
       }

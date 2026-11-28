@@ -20,7 +20,7 @@ TrackWidget::TrackWidget(QWidget *parent) : QWidget(parent) {
   setAttribute(Qt::WA_OpaquePaintEvent);
   setFixedSize(spinner_size);
 
-  // Smart Eco fork: the frog sits still while a soft blue (#0C3B97) glow behind it pulses.
+  // Smart Eco fork: the frog sits still while a soft blue (#1F6BFF) glow behind it pulses.
   QPixmap comma_img = loadPixmap("../assets/img_spinner_comma.png", spinner_size);
   QPixmap glow_img = loadPixmap("../assets/img_spinner_glow.png", spinner_size);
 

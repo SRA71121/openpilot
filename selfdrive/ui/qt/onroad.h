@@ -170,7 +170,6 @@ private:
   QVBoxLayout *main_layout;
   ExperimentalButton *experimental_btn;
   QPixmap dm_img;
-  QPixmap frogSkinImg;  // Smart Eco fork: Night Mode path texture
   float speed;
   QString speedUnit;
   float setSpeed;

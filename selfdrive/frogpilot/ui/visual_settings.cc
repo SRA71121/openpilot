@@ -37,7 +37,7 @@ FrogPilotVisualsPanel::FrogPilotVisualsPanel(SettingsWindow *parent) : FrogPilot
     {"RoadNameUI", "Road Name", "See the name of the road you're on at the bottom of your screen. Sourced from OpenStreetMap.", ""},
 
     {"CameraAutoExposure", "Night Camera Exposure Fix", "Newer comma 3X units (OS04C10 camera) are stuck at a fixed exposure on this build, which makes the road picture dark at night. This lets the road cameras adjust exposure like openpilot 0.9.7 does.\n\nThe driving model sees this brighter picture too. The driver monitoring camera is not changed. Has no effect on older 3X units.\n\nRequires a reboot.", "../frogpilot/assets/toggle_icons/icon_camera.png"},
-    {"NightMode", "Night Mode", "When the comma's camera says it's dark, the screen dims to the Night Brightness below and the driving path turns into blue poison dart frog skin with a #0C3B97 outline. Switches back automatically when it's light again (30-second delay so tunnels and streetlights don't flicker it).", "../frogpilot/assets/toggle_icons/icon_camera.png"},
+    {"NightMode", "Night Mode", "When the comma's camera says it's dark, the screen dims to the Night Brightness below and the path outline glows electric blue. Switches back automatically when it's light again (30-second delay so tunnels and streetlights don't flicker it).", "../frogpilot/assets/toggle_icons/icon_camera.png"},
     {"NightBrightness", "  Night Brightness", "Screen brightness while Night Mode is active. Only applies when onroad screen brightness is on Auto.", ""},
     {"DriverCamera", "Driver Camera On Reverse", "Show the driver's camera feed when you shift to reverse.", "../assets/img_driver_face_static.png"},
 

@@ -20,20 +20,39 @@ TrackWidget::TrackWidget(QWidget *parent) : QWidget(parent) {
   setAttribute(Qt::WA_OpaquePaintEvent);
   setFixedSize(spinner_size);
 
-  // Smart Eco fork: the frog sits still while a soft blue (#1F6BFF) glow behind it pulses.
+  // Smart Eco fork: the frog sits still while a soft blue (#1F6BFF) glow behind it pulses,
+  // and his throat (vocal) sac puffs out twice per loop, like he's calling.
   QPixmap comma_img = loadPixmap("../assets/img_spinner_comma.png", spinner_size);
   QPixmap glow_img = loadPixmap("../assets/img_spinner_glow.png", spinner_size);
+  const double f = spinner_size.width() / 848.0;  // the frog art is drawn on an 848 px canvas
+  QPixmap sac_img = loadPixmap("../assets/img_spinner_sac.png", QSize(int(170 * f), int(140 * f)));
+  const QPointF sac_center(640 * f, 372 * f);      // tucked under the jaw; drawn behind the frog so it grows out from under it
+
+  auto bump = [](double x, double a, double b) {
+    if (x < a || x > b) return 0.0;
+    return std::pow(std::sin(M_PI * (x - a) / (b - a)), 1.5);
+  };
 
   QPixmap pm(spinner_size);
   QPainter p(&pm);
   p.setRenderHint(QPainter::SmoothPixmapTransform);
   for (int i = 0; i < track_imgs.size(); ++i) {
-    const double k = 0.2 + 0.8 * (0.5 - 0.5 * std::cos(2.0 * M_PI * i / track_imgs.size()));
+    const double phase = double(i) / track_imgs.size();
+    const double k = 0.2 + 0.8 * (0.5 - 0.5 * std::cos(2.0 * M_PI * phase));
     p.setOpacity(1.0);
     p.fillRect(0, 0, spinner_size.width(), spinner_size.height(), Qt::black);
     p.setOpacity(k);
     p.drawPixmap(0, 0, glow_img);
     p.setOpacity(1.0);
+
+    const double puff = std::max(bump(phase, 0.05, 0.38), bump(phase, 0.52, 0.85));
+    if (puff > 0.02 && !sac_img.isNull()) {
+      const double sc = 0.3 + 0.7 * puff;
+      const double w = sac_img.width() * sc, h = sac_img.height() * sc;
+      const QPointF c(sac_center.x() - 30 * f * (1 - sc), sac_center.y() - 40 * f * (1 - sc));
+      p.drawPixmap(QRectF(c.x() - w / 2, c.y() - h / 2, w, h), sac_img, QRectF(sac_img.rect()));
+    }
+
     p.drawPixmap(0, 0, comma_img);
     track_imgs[i] = pm.copy();
   }
